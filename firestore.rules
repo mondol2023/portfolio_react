@@ -1,0 +1,94 @@
+rules_version = '2';
+
+// Firestore security rules for the portfolio CMS.
+//
+// These rules are the *independent* authorization layer. The application already
+// checks admin access twice on the server — once in the guarded admin layout and
+// again inside every mutating Server Action — but both of those live in code that
+// a bug or a refactor could weaken. These rules are enforced by Firestore itself
+// and apply to every client that ever talks to this project, including one the
+// app does not know about.
+//
+// Deployment model: all application reads and writes go through the Firebase
+// Admin SDK on the server, which bypasses these rules by design. So nothing here
+// is load-bearing for normal operation — it is purely the floor that a direct
+// browser or REST client hits. That floor is: anyone may read published portfolio
+// content, nobody may write anything unless they are a verified administrator.
+//
+// Deploy with:  firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Authorization helpers -------------------------------------------
+
+    // Two independent conditions, matching src/lib/firebase/session.ts:
+    //   1. the token carries the custom claim `admin: true`, minted server-side
+    //      by scripts/set-admin-claim.mjs and unforgeable by the client, and
+    //   2. an allowlist document exists at admins/{uid}, so access can be
+    //      revoked immediately without waiting for tokens to expire.
+    //
+    // `request.auth != null` alone is deliberately NOT sufficient: anyone can
+    // create a Firebase account, and a signed-in user is not an administrator.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.admin == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // --- Admin allowlist --------------------------------------------------
+
+    // Readable only by the account it describes, so a signed-in user can confirm
+    // their own status but cannot enumerate the administrators. Never writable
+    // from a client: granting admin is a privileged operation that belongs to the
+    // Admin SDK. Bootstrap the first entry with `npm run set-admin`.
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // --- Public portfolio content ----------------------------------------
+
+    // Only published projects are world-readable; drafts stay private so
+    // unfinished work is not exposed by fetching the collection directly.
+    match /projects/{projectId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /experience/{experienceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Disabled skills are hidden the same way drafts are.
+    match /skills/{skillId} {
+      allow read: if resource.data.enabled == true || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Singleton documents: content/about and content/siteSettings.
+    match /content/{documentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Contact messages -------------------------------------------------
+
+    // Private in both directions. Submissions arrive through a Server Action
+    // using the Admin SDK, which is what lets the app rate-limit and validate
+    // them; allowing direct client creates would hand anyone an unfiltered write
+    // endpoint into this collection.
+    match /messages/{messageId} {
+      allow read, write: if isAdmin();
+    }
+
+    // --- Default deny -------------------------------------------------------
+
+    // Any collection added later is inaccessible until it is granted access
+    // above, on purpose — a new feature should fail closed, not open.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

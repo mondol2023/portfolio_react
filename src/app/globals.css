@@ -1,0 +1,610 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens
+ * -------------
+ * Every colour in the app resolves through one of these variables. Components
+ * must never hardcode hex values — that is what keeps light/dark parity honest
+ * and makes a palette change a one-file edit.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Surfaces — warm neutral stack rather than pure grey */
+  --bg: #fbfaf9;
+  --bg-subtle: #f4f2f0;
+  --surface: #ffffff;
+  --surface-hover: #f7f5f3;
+  --surface-raised: #ffffff;
+
+  /* Lines */
+  --border: #e7e2dd;
+  --border-strong: #d6cfc8;
+
+  /* Text */
+  --fg: #1a1614;
+  --fg-muted: #5d554f;
+  --fg-subtle: #8a807a;
+
+  /* Brand accent — warm amber reads as "crafted" rather than default-blue */
+  --accent: #c2410c;
+  --accent-hover: #9a3412;
+  --accent-fg: #ffffff;
+  --accent-subtle: #fff1e8;
+  --accent-ring: rgba(194, 65, 12, 0.35);
+
+  /* Status */
+  --success: #15803d;
+  --success-subtle: #ecfdf3;
+  --danger: #b91c1c;
+  --danger-subtle: #fef2f2;
+  --warning: #b45309;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(26, 22, 20, 0.05);
+  --shadow-md: 0 4px 16px -4px rgba(26, 22, 20, 0.1), 0 2px 4px -2px rgba(26, 22, 20, 0.05);
+  --shadow-lg: 0 24px 48px -16px rgba(26, 22, 20, 0.16);
+
+  /* Ambient grid / glow strength, tuned per theme */
+  --grid-line: rgba(26, 22, 20, 0.045);
+  --glow: rgba(194, 65, 12, 0.1);
+}
+
+.dark {
+  --bg: #0c0a09;
+  --bg-subtle: #12100e;
+  --surface: #151210;
+  --surface-hover: #1c1917;
+  --surface-raised: #1c1917;
+
+  --border: #292420;
+  --border-strong: #3d3630;
+
+  --fg: #f5f2ef;
+  --fg-muted: #a8a09a;
+  --fg-subtle: #78706a;
+
+  --accent: #fb923c;
+  --accent-hover: #fdba74;
+  --accent-fg: #1a1005;
+  --accent-subtle: rgba(251, 146, 60, 0.12);
+  --accent-ring: rgba(251, 146, 60, 0.4);
+
+  --success: #4ade80;
+  --success-subtle: rgba(74, 222, 128, 0.12);
+  --danger: #f87171;
+  --danger-subtle: rgba(248, 113, 113, 0.12);
+  --warning: #fbbf24;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+
+  --grid-line: rgba(245, 242, 239, 0.04);
+  --glow: rgba(251, 146, 60, 0.09);
+}
+
+/*
+ * Section tones
+ * -------------
+ * Each public section carries `data-tone="<name>"`, which swaps the two
+ * properties below. `--tone` is the readable accent (used for eyebrows, rules
+ * and markers), `--tone-soft` the translucent wash the animated background
+ * paints with.
+ *
+ * Both are registered with `@property` for one reason: unregistered custom
+ * properties are untyped tokens and cannot be transitioned, so the background
+ * would jump between hues instead of cross-fading. Registration also means
+ * every declaration must parse as a real `<color>` — hence literal values here
+ * rather than `var(--accent)`, which would fail type checking and fall back to
+ * the initial value.
+ */
+
+@property --tone {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #c2410c;
+}
+
+@property --tone-soft {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(194, 65, 12, 0.14);
+}
+
+/* Light tones sit at the 700 level so the small mono eyebrow clears 4.5:1 on --bg. */
+[data-tone="hero"] {
+  --tone: #c2410c;
+  --tone-soft: rgba(194, 65, 12, 0.14);
+}
+[data-tone="about"] {
+  --tone: #6d28d9;
+  --tone-soft: rgba(109, 40, 217, 0.13);
+}
+[data-tone="stack"] {
+  --tone: #0e7490;
+  --tone-soft: rgba(14, 116, 144, 0.14);
+}
+[data-tone="work"] {
+  --tone: #be123c;
+  --tone-soft: rgba(190, 18, 60, 0.12);
+}
+[data-tone="experience"] {
+  --tone: #047857;
+  --tone-soft: rgba(4, 120, 87, 0.14);
+}
+[data-tone="contact"] {
+  --tone: #1d4ed8;
+  --tone-soft: rgba(29, 78, 216, 0.13);
+}
+
+/* Dark tones at the 400 level — same hues, lifted for contrast on --bg. */
+.dark [data-tone="hero"] {
+  --tone: #fb923c;
+  --tone-soft: rgba(251, 146, 60, 0.16);
+}
+.dark [data-tone="about"] {
+  --tone: #a78bfa;
+  --tone-soft: rgba(167, 139, 250, 0.16);
+}
+.dark [data-tone="stack"] {
+  --tone: #22d3ee;
+  --tone-soft: rgba(34, 211, 238, 0.14);
+}
+.dark [data-tone="work"] {
+  --tone: #fb7185;
+  --tone-soft: rgba(251, 113, 133, 0.15);
+}
+.dark [data-tone="experience"] {
+  --tone: #34d399;
+  --tone-soft: rgba(52, 211, 153, 0.14);
+}
+.dark [data-tone="contact"] {
+  --tone: #60a5fa;
+  --tone-soft: rgba(96, 165, 250, 0.16);
+}
+
+@theme inline {
+  --color-tone: var(--tone);
+  --color-tone-soft: var(--tone-soft);
+
+  --color-bg: var(--bg);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-raised: var(--surface-raised);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-subtle: var(--accent-subtle);
+
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-warning: var(--warning);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+
+  --radius-card: 0.875rem;
+
+  --shadow-elevated: var(--shadow-md);
+  --shadow-floating: var(--shadow-lg);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Offset anchor jumps so section headings clear the fixed navbar. */
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--accent-fg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /*
+   * Reduced motion: collapse every transition/animation to a near-instant
+   * state change. Motion components additionally drop transforms entirely
+   * (see `use-motion-preference.ts`) so nothing merely animates faster —
+   * it genuinely stops moving.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Page gutter + max width, used by every section. */
+  .container-page {
+    width: 100%;
+    max-width: 76rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .container-page {
+      padding-inline: 2rem;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .container-page {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  /* Uppercase mono label used for eyebrows, metadata and section indices. */
+  .label-mono {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-subtle);
+  }
+
+  /* Faint blueprint grid used behind the hero and section dividers. */
+  .surface-grid {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  .glow-accent {
+    background: radial-gradient(60% 60% at 50% 0%, var(--glow) 0%, transparent 70%);
+  }
+
+  /* Switch knob — travels when the visually-hidden checkbox is checked. */
+  .toggle-knob {
+    transition: transform 200ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  .toggle-input:checked ~ label .toggle-knob {
+    transform: translateX(1.25rem);
+  }
+
+  /*
+   * Native <dialog> entrance. Handled in CSS rather than Framer Motion because
+   * the element lives in the top layer, which React portals cannot animate
+   * reliably. The reduced-motion block above already collapses this.
+   */
+  dialog[open] {
+    animation: dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  dialog[open]::backdrop {
+    animation: backdrop-in 180ms ease-out;
+  }
+
+  /*
+   * Marquee
+   * -------
+   * A single track holding the pill list twice, translated by exactly half its
+   * own width. Because the duplicate begins where the original began, the seam
+   * is invisible and the loop never resets visibly.
+   *
+   * Constant speed is the point: `--marquee-duration` is set inline per row as
+   * item count x a fixed seconds-per-item, so a long row takes proportionally
+   * longer and every row travels at the same pixels-per-second.
+   *
+   * Spacing lives on the items as `margin-inline-end`, not as flex `gap`. A gap
+   * is only drawn *between* children, so it is absent after the last item of
+   * the duplicate — which would make the two halves unequal and shift the seam
+   * by half a gap on every cycle.
+   */
+  .marquee {
+    --marquee-duration: 40s;
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    /*
+     * Headroom for the selected pill. The row has to clip horizontally for the
+     * loop to work, and `overflow` clips both axes — without this, a pill grown
+     * by `scale()` (and its ring) would be sliced off top and bottom. Rows are
+     * spaced by this padding rather than by a gap between them.
+     */
+    padding-block: 0.75rem;
+    /* Fade the pills into the page edges instead of clipping them dead. */
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 6%,
+      black 94%,
+      transparent 100%
+    );
+  }
+
+  .marquee-track {
+    display: flex;
+    flex: none;
+    align-items: center;
+    width: max-content;
+    animation: marquee-scroll var(--marquee-duration) linear infinite;
+    will-change: transform;
+  }
+
+  .marquee[data-direction="reverse"] .marquee-track {
+    animation-direction: reverse;
+  }
+
+  /* Let a reader stop a row to actually read it — including via keyboard. */
+  .marquee:hover .marquee-track,
+  .marquee:focus-within .marquee-track {
+    animation-play-state: paused;
+  }
+
+  /*
+   * Ambient background
+   * ------------------
+   * Fixed behind the page, tone-aware, and different by theme: drifting blobs
+   * in both modes, plus soft light rays in light mode and a slow star field in
+   * dark. Both extra layers are always rendered and switched with opacity, so
+   * the theme difference costs no JavaScript and cannot flash on hydration.
+   */
+  .ambient {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    overflow: hidden;
+    pointer-events: none;
+    transition:
+      --tone 900ms ease,
+      --tone-soft 900ms ease;
+  }
+
+  .ambient-blob {
+    position: absolute;
+    border-radius: 9999px;
+    background: radial-gradient(circle at center, var(--tone-soft) 0%, transparent 70%);
+    filter: blur(60px);
+    will-change: transform;
+  }
+
+  .ambient-blob-a {
+    width: 46rem;
+    height: 46rem;
+    top: -16rem;
+    left: -12rem;
+    animation: ambient-drift-a 34s ease-in-out infinite alternate;
+  }
+
+  .ambient-blob-b {
+    width: 38rem;
+    height: 38rem;
+    top: 32%;
+    right: -14rem;
+    animation: ambient-drift-b 44s ease-in-out infinite alternate;
+  }
+
+  .ambient-blob-c {
+    width: 34rem;
+    height: 34rem;
+    bottom: -14rem;
+    left: 22%;
+    animation: ambient-drift-c 38s ease-in-out infinite alternate;
+  }
+
+  /* Light mode: angled light shafts from the top-left. */
+  .ambient-rays {
+    position: absolute;
+    inset: -25% -20% auto -20%;
+    height: 95%;
+    background-image: repeating-linear-gradient(
+      108deg,
+      var(--tone-soft) 0 3px,
+      transparent 3px 92px
+    );
+    mask-image: radial-gradient(65% 70% at 45% 0%, black, transparent 100%);
+    opacity: 0.85;
+    transition: opacity 500ms ease;
+    animation: ambient-rays-shift 26s linear infinite;
+  }
+
+  .dark .ambient-rays {
+    opacity: 0;
+  }
+
+  /* Dark mode: a tiled star field, a couple of stars per tile tinted by tone. */
+  .ambient-stars {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 500ms ease;
+    background-image:
+      radial-gradient(1px 1px at 14% 22%, rgba(245, 242, 239, 0.85), transparent 100%),
+      radial-gradient(1px 1px at 71% 14%, rgba(245, 242, 239, 0.55), transparent 100%),
+      radial-gradient(1.6px 1.6px at 38% 61%, var(--tone), transparent 100%),
+      radial-gradient(1px 1px at 88% 47%, rgba(245, 242, 239, 0.5), transparent 100%),
+      radial-gradient(1.4px 1.4px at 57% 86%, var(--tone), transparent 100%),
+      radial-gradient(1px 1px at 6% 79%, rgba(245, 242, 239, 0.45), transparent 100%);
+    background-size: 380px 320px;
+    background-repeat: repeat;
+  }
+
+  .dark .ambient-stars {
+    opacity: 1;
+    animation: ambient-twinkle 7s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes marquee-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes ambient-drift-a {
+  to {
+    transform: translate3d(9rem, 5rem, 0) scale(1.12);
+  }
+}
+
+@keyframes ambient-drift-b {
+  to {
+    transform: translate3d(-8rem, -7rem, 0) scale(0.9);
+  }
+}
+
+@keyframes ambient-drift-c {
+  to {
+    transform: translate3d(6rem, -5rem, 0) scale(1.08);
+  }
+}
+
+@keyframes ambient-rays-shift {
+  to {
+    background-position: 320px 0;
+  }
+}
+
+@keyframes ambient-twinkle {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+
+/*
+ * Reduced motion, part two.
+ *
+ * The blanket rule in `@layer base` collapses every animation to 0.01ms with a
+ * single iteration, which is right for entrances but wrong for anything whose
+ * *end state* is not its resting state. The marquee would snap to
+ * translateX(-50%) and hide the first half of the row; the ambient blobs would
+ * jump to the far end of their drift. Both are stopped outright instead.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    mask-image: none;
+  }
+
+  .marquee-track {
+    animation: none !important;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  /*
+   * The repeated pills exist only to make the loop seamless and to fill a short
+   * row; without a loop they are just the same technology listed twice. They
+   * are already the ones kept out of the accessibility tree, so that attribute
+   * identifies them exactly.
+   */
+  .marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
+
+  .ambient-blob,
+  .ambient-rays,
+  .ambient-stars {
+    animation: none !important;
+  }
+
+  .ambient {
+    transition: none;
+  }
+}
+
+@layer utilities {
+  /* Fluid display type — deliberate ramps instead of a dozen breakpoints. */
+  .text-display {
+    font-size: clamp(2.75rem, 8.5vw, 6.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+  }
+
+  .text-section {
+    font-size: clamp(2rem, 4.5vw, 3.25rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+  }
+
+  .text-lead {
+    font-size: clamp(1rem, 1.6vw, 1.1875rem);
+    line-height: 1.65;
+  }
+
+  /* Hides content visually but keeps it available to screen readers. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
