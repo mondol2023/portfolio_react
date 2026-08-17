@@ -54,6 +54,7 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
       tagline: readString(data, "tagline", DEFAULT_SITE_SETTINGS.tagline),
       description: readString(data, "description", DEFAULT_SITE_SETTINGS.description),
       email: readString(data, "email", DEFAULT_SITE_SETTINGS.email),
+      phone: readOptionalString(data, "phone"),
       location: readOptionalString(data, "location"),
       github: readOptionalString(data, "github"),
       linkedin: readOptionalString(data, "linkedin"),

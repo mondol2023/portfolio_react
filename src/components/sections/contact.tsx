@@ -1,9 +1,15 @@
 import { ContactForm } from "@/components/contact/contact-form";
 import { Reveal } from "@/components/motion/reveal";
+import { CallButton } from "@/components/ui/call-button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { SocialButtons } from "@/components/ui/social-buttons";
 import type { SiteSettings } from "@/lib/types/content";
-import { realValue, resolveEmailLink, resolveSocialLinks } from "@/lib/utils/social";
+import {
+  realValue,
+  resolveEmailLink,
+  resolvePhoneHref,
+  resolveSocialLinks,
+} from "@/lib/utils/social";
 
 import { Section, headingId } from "./section";
 
@@ -19,6 +25,7 @@ const SECTION_ID = "contact";
 
 export function Contact({ settings }: { settings: SiteSettings }) {
   const email = resolveEmailLink(settings);
+  const phoneHref = resolvePhoneHref(settings);
   const socials = resolveSocialLinks(settings);
   const location = realValue(settings.location);
 
@@ -45,6 +52,17 @@ export function Contact({ settings }: { settings: SiteSettings }) {
               >
                 {email.display}
               </a>
+            </div>
+          ) : null}
+
+          {/*
+           * Sits under the address as its own channel, and unlike it shows a
+           * button rather than the value — the number is dialled, not read.
+           */}
+          {phoneHref ? (
+            <div>
+              <p className="label-mono mb-3">Phone</p>
+              <CallButton href={phoneHref} />
             </div>
           ) : null}
 

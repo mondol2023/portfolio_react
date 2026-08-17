@@ -17,6 +17,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   description:
     "Senior software developer focused on TypeScript, React and Next.js — building fast, accessible, well-architected web applications from first commit to production.",
   email: "pavel@gmail.com",
+  phone: undefined,
   location: "YOUR_LOCATION",
   github: "https://github.com/mondol2023",
   linkedin: "https://linkedin.com/in/YOUR_LINKEDIN",

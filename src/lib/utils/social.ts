@@ -56,6 +56,27 @@ export function resolveSocialLinks(settings: SiteSettings): SocialLinkView[] {
   return links;
 }
 
+/**
+ * The phone number as a `tel:` URI — and only as a URI.
+ *
+ * Returns a link rather than a `SocialLinkView` on purpose: there is no
+ * `display` field to hand a component, so the number cannot be printed on the
+ * page by accident. It is dialled, not read.
+ *
+ * Everything that is not a digit is dropped, because diallers vary in what
+ * punctuation they tolerate, and a leading `+` is restored afterwards — without
+ * it an international number silently dials as if it were local.
+ */
+export function resolvePhoneHref(settings: SiteSettings): string | null {
+  const phone = realValue(settings.phone);
+  if (!phone) return null;
+
+  const digits = phone.replace(/\D/g, "");
+  if (digits === "") return null;
+
+  return `tel:${phone.trimStart().startsWith("+") ? "+" : ""}${digits}`;
+}
+
 /** The email link is separate: it is the one contact route that always exists. */
 export function resolveEmailLink(settings: SiteSettings): SocialLinkView | null {
   const email = realValue(settings.email);

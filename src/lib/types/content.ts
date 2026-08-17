@@ -154,6 +154,11 @@ export interface SiteSettings {
   tagline: string;
   description: string;
   email: string;
+  /**
+   * Dialled, never printed. The contact section renders this as an icon button
+   * that opens the dialler — see `resolvePhoneHref`.
+   */
+  phone?: string;
   location?: string;
   github?: string;
   linkedin?: string;

@@ -90,6 +90,7 @@ export function siteSettingsToInput(settings: SiteSettings): SiteSettingsInput {
     tagline: settings.tagline,
     description: settings.description,
     email: settings.email,
+    phone: settings.phone ?? "",
     location: settings.location ?? "",
     github: settings.github ?? "",
     linkedin: settings.linkedin ?? "",

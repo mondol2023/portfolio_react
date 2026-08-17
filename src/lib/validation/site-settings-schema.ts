@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { AVAILABILITY_STATUSES } from "@/lib/types/content";
 
-import { optionalText, optionalUrl, requiredText, requiredUrl } from "./common";
+import { optionalPhone, optionalText, optionalUrl, requiredText, requiredUrl } from "./common";
 
 export const socialLinkSchema = z.object({
   label: requiredText("Link label", 2, 30),
@@ -15,6 +15,7 @@ export const siteSettingsSchema = z.object({
   tagline: requiredText("Tagline", 10, 160),
   description: requiredText("Description", 20, 400),
   email: z.email("Enter a valid email address."),
+  phone: optionalPhone,
   location: optionalText(80),
   github: optionalUrl,
   linkedin: optionalUrl,

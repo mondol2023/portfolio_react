@@ -104,6 +104,23 @@ export function SettingsForm({ initialValues }: SettingsFormProps) {
             )}
           </Field>
         </FormRow>
+
+        <Field
+          label="Phone"
+          error={errors.phone?.message}
+          hint="Not a link — type the number itself. It is never printed on the site: the contact section shows a call button instead, which dials it. Note that the number is still readable in the page source, so treat this as unlisted rather than private. Leave empty to hide the button."
+        >
+          {(props) => (
+            <Input
+              {...props}
+              {...register("phone")}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+880 1712-345678"
+            />
+          )}
+        </Field>
       </FormSection>
 
       <FormSection

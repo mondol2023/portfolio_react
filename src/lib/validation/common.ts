@@ -30,6 +30,33 @@ export const optionalUrl = z.preprocess(
 
 export const requiredUrl = z.url("Enter a full URL, including https://").max(500);
 
+/**
+ * A phone number written the way people write them: "+880 1712-345678",
+ * "(555) 123 4567".
+ *
+ * Deliberately loose. Numbering plans differ per country and a strict pattern
+ * would reject a legitimate number with no way for the owner to argue, so this
+ * only checks that the string is dialling characters and holds enough digits to
+ * be a number at all. Formatting is preserved as typed; it is stripped when the
+ * `tel:` link is built, not here.
+ */
+export const optionalPhone = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .trim()
+    .max(24, "Phone number must be 24 characters or fewer.")
+    .regex(
+      /^\+?[\d\s().-]+$/,
+      "Use digits, optionally with +, spaces, dashes or brackets.",
+    )
+    .refine(
+      (value) => value.replace(/\D/g, "").length >= 6,
+      "That is too short to be a phone number.",
+    )
+    .optional(),
+);
+
 export const isoDate = z
   .string()
   .trim()
