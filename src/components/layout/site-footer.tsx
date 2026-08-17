@@ -1,9 +1,15 @@
 import Link from "next/link";
 
+import { CallButton } from "@/components/ui/call-button";
 import { SocialButtons } from "@/components/ui/social-buttons";
 import { NAV_ITEMS } from "@/lib/constants/navigation";
 import type { SiteSettings } from "@/lib/types/content";
-import { realValue, resolveEmailLink, resolveSocialLinks } from "@/lib/utils/social";
+import {
+  realValue,
+  resolveEmailLink,
+  resolvePhoneHref,
+  resolveSocialLinks,
+} from "@/lib/utils/social";
 
 /**
  * Site footer. A Server Component — it renders content and links, nothing here
@@ -12,6 +18,7 @@ import { realValue, resolveEmailLink, resolveSocialLinks } from "@/lib/utils/soc
 export function SiteFooter({ settings }: { settings: SiteSettings }) {
   const socials = resolveSocialLinks(settings);
   const email = resolveEmailLink(settings);
+  const phoneHref = resolvePhoneHref(settings);
   const location = realValue(settings.location);
   const year = new Date().getFullYear();
 
@@ -63,7 +70,18 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
                 {email.display}
               </a>
             ) : null}
-            <SocialButtons links={socials} className="mt-4" />
+            {/*
+             * One row: the call button is a mark like the rest, so it lines up
+             * with them rather than claiming a heading of its own down here.
+             * `SocialButtons` brings its own gap, and this outer flex supplies
+             * the matching one between the two groups.
+             */}
+            {phoneHref || socials.length > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {phoneHref ? <CallButton href={phoneHref} /> : null}
+                <SocialButtons links={socials} />
+              </div>
+            ) : null}
           </div>
         </div>
 
