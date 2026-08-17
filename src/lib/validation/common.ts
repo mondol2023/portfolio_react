@@ -61,10 +61,16 @@ export const orderIndex = z.coerce
   .min(0, "Order cannot be negative.")
   .max(9999);
 
-/** A tag/technology list. Empty entries are dropped before validation. */
+/**
+ * A tag/technology list. Empty entries are dropped before validation.
+ *
+ * `entryMax` caps a single entry. It defaults to tag length; lists that hold
+ * sentences rather than labels should raise it, because an over-long entry is
+ * rejected with no way for the user to shorten it except deleting it outright.
+ */
 export const stringList = (
   label: string,
-  { min = 0, max = 40 }: { min?: number; max?: number } = {},
+  { min = 0, max = 40, entryMax = 60 }: { min?: number; max?: number; entryMax?: number } = {},
 ) =>
   z.preprocess(
     (value) =>
@@ -72,7 +78,13 @@ export const stringList = (
         ? value.filter((item) => typeof item === "string" && item.trim() !== "")
         : value,
     z
-      .array(z.string().trim().min(1).max(60))
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1)
+          .max(entryMax, `Each entry under ${label} must be ${entryMax} characters or fewer.`),
+      )
       .min(min, min > 0 ? `Add at least ${min} ${label}.` : undefined)
       .max(max, `No more than ${max} ${label} allowed.`),
   );

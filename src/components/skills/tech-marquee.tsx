@@ -45,7 +45,7 @@ function fillRow(skills: readonly Skill[]): Skill[] {
 interface TechMarqueeProps {
   skills: readonly Skill[];
   /** Alternating rows read as a weave rather than a conveyor belt. */
-  direction?: "forward" | "reverse";
+  direction?: "forward" | "reverse" | "null";
   /** Accessible name for the row. */
   label: string;
   /** Id of the pill currently zoomed, if it is in this row. */
@@ -67,7 +67,7 @@ export function TechMarquee({
 
   return (
     <div
-      className="marquee"
+      className="marquee "
       data-direction={direction}
       style={{ "--marquee-duration": duration } as CSSProperties}
     >

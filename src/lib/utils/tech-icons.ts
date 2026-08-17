@@ -1,3 +1,4 @@
+import { canonicalTechKey } from "@/lib/constants/tech-brand";
 import type { Skill } from "@/lib/types/content";
 
 /**
@@ -23,13 +24,26 @@ function normalize(name: string): string {
 export function buildTechIconMap(skills: readonly Skill[]): TechIconMap {
   const map: Record<string, string> = {};
 
+  // Exact names first, so a skill always owns its own spelling before anything
+  // looser is allowed to claim a key.
   for (const skill of skills) {
     if (skill.iconUrl) map[normalize(skill.name)] = skill.iconUrl;
+  }
+
+  /*
+   * Then the loose form, which is what makes a skill named "React" light up a
+   * role that lists "Reactjs". Existing keys are never overwritten: where two
+   * skills reduce to the same key, whichever one was named exactly wins.
+   */
+  for (const skill of skills) {
+    if (!skill.iconUrl) continue;
+    const key = canonicalTechKey(skill.name);
+    if (key && !(key in map)) map[key] = skill.iconUrl;
   }
 
   return map;
 }
 
 export function lookupTechIcon(icons: TechIconMap, name: string): string | undefined {
-  return icons[normalize(name)];
+  return icons[normalize(name)] ?? icons[canonicalTechKey(name)];
 }

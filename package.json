@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "set-admin": "node scripts/set-admin-claim.mjs",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "test-firebase": "node scripts/test-firebase.mjs",
+    "deploy-rules": "node scripts/deploy-firestore-rules.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.8.0",

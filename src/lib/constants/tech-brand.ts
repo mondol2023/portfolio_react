@@ -27,8 +27,16 @@ const BRAND_COLORS: Record<string, string> = {
   tailwindcss: "#06b6d4",
   "node.js": "#5fa04e",
   nodejs: "#5fa04e",
+  "nest.js": "#e0234e",
   "express.js": "#8b8b8b",
   express: "#8b8b8b",
+  redux: "#764abc",
+  "redux toolkit": "#764abc",
+  rtk: "#764abc",
+  zustand: "#846358",
+  "react query": "#ff4154",
+  "tanstack query": "#ff4154",
+  stripe: "#635bff",
   laravel: "#ff2d20",
   django: "#0c4b33",
   postgresql: "#4169e1",
@@ -54,8 +62,29 @@ const BRAND_COLORS: Record<string, string> = {
 
 const FALLBACK_COLOR = "#8b8b8b";
 
+/**
+ * The form of a technology name used for matching.
+ *
+ * The same technology gets typed a dozen ways across projects and roles —
+ * "React", "React.js", "Reactjs", "react js" — and a lookup that only matches
+ * the literal string leaves most of them grey and anonymous. Punctuation and
+ * spacing are dropped, and a trailing "js" with it, so all four collapse to
+ * `react`. Names that merely look similar ("Next", "Nest") stay distinct.
+ */
+export function canonicalTechKey(name: string): string {
+  const compact = name.toLowerCase().replace(/[^a-z0-9+#]/g, "");
+  // Guarded so "js" itself, which is the name rather than a suffix, survives.
+  return compact.length > 2 ? compact.replace(/js$/, "") : compact;
+}
+
+/** Brand tints keyed the same way, so the aliases above resolve for free. */
+const CANONICAL_BRAND_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(BRAND_COLORS).map(([name, color]) => [canonicalTechKey(name), color]),
+);
+
 export function getBrandColor(name: string): string {
-  return BRAND_COLORS[name.trim().toLowerCase()] ?? FALLBACK_COLOR;
+  const exact = BRAND_COLORS[name.trim().toLowerCase()];
+  return exact ?? CANONICAL_BRAND_COLORS[canonicalTechKey(name)] ?? FALLBACK_COLOR;
 }
 
 /**

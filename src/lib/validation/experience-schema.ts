@@ -21,7 +21,9 @@ export const experienceSchema = z
     endDate: optionalIsoDate,
     isCurrent: z.boolean(),
     description: requiredText("Description", 10, 2000),
-    responsibilities: stringList("responsibilities", { max: 12 }),
+    // Responsibilities are written as sentences, not tags, so they need far
+    // more room per entry than a technology name does.
+    responsibilities: stringList("responsibilities", { max: 12, entryMax: 240 }),
     technologies: stringList("technologies", { max: 30 }),
     companyUrl: optionalUrl,
     order: orderIndex,

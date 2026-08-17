@@ -49,7 +49,7 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
           </nav>
 
           <div>
-            <h2 className="label-mono">Elsewhere</h2>
+            <h2 className="label-mono">Connect Elsewhere</h2>
             {/*
              * The address stays spelled out — it is worth reading and copying —
              * while the profiles become marks, which is what the eye is looking
