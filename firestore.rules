@@ -83,6 +83,19 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // --- Visitor analytics --------------------------------------------------
+
+    // Written only by the tracking route through the Admin SDK, and read only by
+    // the dashboard. Client writes would let anyone inflate the counters; client
+    // reads would publish the visit log.
+    match /visits/{visitId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /visitStats/{day} {
+      allow read, write: if isAdmin();
+    }
+
     // --- Default deny -------------------------------------------------------
 
     // Any collection added later is inaccessible until it is granted access

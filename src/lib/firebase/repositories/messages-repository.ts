@@ -30,13 +30,14 @@ function toMessage(snapshot: DocumentSnapshot): ContactMessage | null {
     message: readString(data, "message"),
     createdAt: readIsoDate(data, "createdAt"),
     read: readBoolean(data, "read"),
+    visitorId: readString(data, "visitorId"),
   };
 }
 
 /** Persists a submission. Returns the new id. */
 export async function createMessage(
   input: Omit<ContactInput, "website">,
-  meta: { userAgent?: string } = {},
+  meta: { userAgent?: string; visitorId?: string } = {},
 ): Promise<string> {
   const db = requireAdminDb();
   const ref = await db.collection(COLLECTIONS.messages).add({
@@ -46,6 +47,8 @@ export async function createMessage(
     message: input.message,
     read: false,
     userAgent: meta.userAgent ?? null,
+    // Links the message to a row in the visitor table.
+    visitorId: meta.visitorId ?? "",
     createdAt: FieldValue.serverTimestamp(),
   });
   return ref.id;

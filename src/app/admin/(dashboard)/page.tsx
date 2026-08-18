@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { VisitorsPanel } from "@/components/admin/analytics/visitors-panel";
 import { StatCard } from "@/components/admin/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { getExperiences } from "@/lib/firebase/repositories/experience-repositor
 import { getMessages, getUnreadMessageCount } from "@/lib/firebase/repositories/messages-repository";
 import { getAllProjects } from "@/lib/firebase/repositories/projects-repository";
 import { getAllSkills } from "@/lib/firebase/repositories/skills-repository";
+import { parseSearchField } from "@/lib/analytics/search";
 import { formatFullDate } from "@/lib/utils/dates";
 
 /**
@@ -28,7 +30,10 @@ export const metadata = { title: "Dashboard" };
 
 const RECENT_LIMIT = 5;
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({ searchParams }: PageProps<"/admin">) {
+  const { q, field } = await searchParams;
+  const query = typeof q === "string" ? q.trim() : "";
+
   const [projects, experiences, skills, messages, unreadCount] = await Promise.all([
     getAllProjects(),
     getExperiences(),
@@ -190,6 +195,8 @@ export default async function AdminDashboardPage() {
           )}
         </section>
       </div>
+
+      <VisitorsPanel query={query} field={parseSearchField(field)} />
 
       <section aria-labelledby="quick-edits" className="mt-8">
         <h2 id="quick-edits" className="text-sm font-semibold text-fg">

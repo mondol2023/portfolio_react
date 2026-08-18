@@ -1,8 +1,4 @@
-import type {
-  InputHTMLAttributes,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
-} from "react";
+import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils/cn";
 
@@ -20,19 +16,15 @@ const CONTROL =
   "disabled:cursor-not-allowed disabled:opacity-60 " +
   "aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/30";
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(CONTROL, className)} {...props} />;
 }
 
-export function Textarea({
-  className,
-  rows = 5,
-  ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, rows = 5, ...props }: ComponentProps<"textarea">) {
   return <textarea rows={rows} className={cn(CONTROL, "resize-y leading-relaxed", className)} {...props} />;
 }
 
-export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, children, ...props }: ComponentProps<"select">) {
   return (
     <select className={cn(CONTROL, "cursor-pointer pr-9", className)} {...props}>
       {children}

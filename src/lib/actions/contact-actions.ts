@@ -1,7 +1,8 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
+import { VISITOR_ID_COOKIE } from "@/lib/analytics/cookies";
 import { createMessage } from "@/lib/firebase/repositories/messages-repository";
 import { contactSchema, type ContactInput } from "@/lib/validation/contact-schema";
 
@@ -29,9 +30,10 @@ export async function submitContactMessage(
   if (website) return actionSuccess();
 
   try {
-    const headerList = await headers();
+    const [headerList, cookieStore] = await Promise.all([headers(), cookies()]);
     await createMessage(message, {
       userAgent: headerList.get("user-agent") ?? undefined,
+      visitorId: cookieStore.get(VISITOR_ID_COOKIE)?.value,
     });
     return actionSuccess();
   } catch (error) {

@@ -1,3 +1,4 @@
+import { VisitTracker } from "@/components/analytics/visit-tracker";
 import { AmbientBackground } from "@/components/layout/ambient-background";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -32,6 +33,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <JsonLd data={person} />
+      <VisitTracker />
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
       <SkipLink />

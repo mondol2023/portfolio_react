@@ -10,7 +10,14 @@ export const COLLECTIONS = {
   messages: "messages",
   admins: "admins",
   content: "content",
+  /** One document per recorded pageview. */
+  visits: "visits",
+  /** Pre-aggregated rollups: one document per UTC day, plus `_totals`. */
+  visitStats: "visitStats",
 } as const;
+
+/** All-time counters, kept out of the day-keyed documents. */
+export const VISIT_TOTALS_DOC = "_totals";
 
 /** Singleton documents inside the `content` collection. */
 export const CONTENT_DOCS = {

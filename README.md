@@ -192,6 +192,7 @@ them, the **build fails** rather than shipping the key.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | production | Canonical origin, no trailing slash. Used for metadata, Open Graph, `robots.txt` and `sitemap.xml`. Defaults to `http://localhost:3000` in development and to `VERCEL_PROJECT_PRODUCTION_URL` on Vercel. |
 | `PORTFOLIO_DEMO_CONTENT` | no | Set to `off` to disable the demo content described below. Any other value leaves it on. |
+| `ANALYTICS_SALT` | no | Salt for the per-day hash that rate-limits `/api/track`. The hash never leaves the request and no IP address is stored, so this only makes the flood guard harder to game. A shared default is used when unset. |
 
 ---
 

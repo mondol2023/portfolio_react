@@ -177,4 +177,6 @@ export interface ContactMessage {
   message: string;
   createdAt: string;
   read: boolean;
+  /** The `pv_id` cookie of the browser that sent it, when there was one. */
+  visitorId: string;
 }
