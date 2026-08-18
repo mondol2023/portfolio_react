@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { ParabolicGroup, useParabolicProgress } from "@/components/motion/parabolic";
 import { TechMarquee } from "@/components/skills/tech-marquee";
 import {
   PROFICIENCY_LABELS,
@@ -42,8 +43,23 @@ function toRows(skills: readonly Skill[]): Skill[][] {
 
 export function TechChain({ skills }: { skills: Skill[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // The parabolic sweep is measured once here, on the stack as a whole, and
+  // the rows are handed consecutive slices of it. Measuring per row would put
+  // every row within a few dozen pixels of the one above it — near enough to
+  // read as all of them leaving together, when the point is that the top line
+  // clears before the next one starts.
+  const stackRef = useRef<HTMLDivElement>(null);
+  const sweep = useParabolicProgress(stackRef);
+
   const rows = toRows(skills);
   const active = skills.find((skill) => skill.id === activeId) ?? null;
+
+  // Rows are dealt round-robin, so a row's place in the cascade is however
+  // many pills the rows above it hold.
+  const sweepOffsets = rows.map((_, index) =>
+    rows.slice(0, index).reduce((sum, previous) => sum + previous.length, 0),
+  );
 
   // A second click on the same pill puts it back — the zoom is a toggle, not a
   // trap, and there is nowhere else to click that would obviously dismiss it.
@@ -51,17 +67,21 @@ export function TechChain({ skills }: { skills: Skill[] }) {
 
   return (
     <div>
-      <div className="-mx-5 flex flex-col gap-1 md:-mx-8 xl:-mx-10">
-        {rows.map((row, index) => (
-          <TechMarquee
-            key={index}
-            skills={row}
-            direction={index % 2 === 0 ? "forward" : "reverse"}
-            label={`Technologies, line ${index + 1} of ${rows.length}`}
-            activeId={activeId}
-            onSelect={select}
-          />
-        ))}
+      <div ref={stackRef} className="-mx-5 flex flex-col gap-1 md:-mx-8 xl:-mx-10">
+        <ParabolicGroup progress={sweep}>
+          {rows.map((row, index) => (
+            <TechMarquee
+              key={index}
+              skills={row}
+              direction={index % 2 === 0 ? "forward" : "reverse"}
+              label={`Technologies, line ${index + 1} of ${rows.length}`}
+              activeId={activeId}
+              onSelect={select}
+              sweepOffset={sweepOffsets[index] ?? 0}
+              sweepTotal={skills.length}
+            />
+          ))}
+        </ParabolicGroup>
       </div>
 
       {/*

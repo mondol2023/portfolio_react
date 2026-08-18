@@ -1,5 +1,8 @@
+"use client";
+
 import type { CSSProperties } from "react";
 
+import { ParabolicItem } from "@/components/motion/parabolic";
 import { TechTile } from "@/components/ui/tech-tile";
 import type { Skill } from "@/lib/types/content";
 import { cn } from "@/lib/utils/cn";
@@ -51,6 +54,14 @@ interface TechMarqueeProps {
   /** Id of the pill currently zoomed, if it is in this row. */
   activeId: string | null;
   onSelect: (id: string) => void;
+  /**
+   * Where this row's pills sit in the parabolic cascade that runs across the
+   * whole chain, so the rows sweep one after another instead of together. The
+   * scroll window itself belongs to `<TechChain>`; a row measured on its own
+   * box would start at nearly the same moment as the row above it.
+   */
+  sweepOffset?: number;
+  sweepTotal?: number;
 }
 
 export function TechMarquee({
@@ -59,6 +70,8 @@ export function TechMarquee({
   label,
   activeId,
   onSelect,
+  sweepOffset = 0,
+  sweepTotal,
 }: TechMarqueeProps) {
   const row = fillRow(skills);
   if (row.length === 0) return null;
@@ -107,8 +120,30 @@ export function TechMarquee({
                       : "border-border hover:border-tone",
                   )}
                 >
-                  <TechTile name={skill.name} iconUrl={skill.iconUrl} size="sm" />
-                  <span className="text-sm font-medium whitespace-nowrap text-fg">{skill.name}</span>
+                  {/* Duplicates exist only for the seamless loop and are mostly
+                      off-screen — sweeping them would just cost frames. */}
+                  {duplicate ? (
+                    <>
+                      <TechTile name={skill.name} iconUrl={skill.iconUrl} size="sm" />
+                      <span className="text-sm font-medium whitespace-nowrap text-fg">
+                        {skill.name}
+                      </span>
+                    </>
+                  ) : (
+                    <ParabolicItem
+                      className="flex items-center gap-2.5"
+                      index={sweepOffset + index}
+                      total={sweepTotal ?? skills.length}
+                      distance={110}
+                      arc={75}
+                      rotate={14}
+                    >
+                      <TechTile name={skill.name} iconUrl={skill.iconUrl} size="sm" />
+                      <span className="text-sm font-medium whitespace-nowrap text-fg">
+                        {skill.name}
+                      </span>
+                    </ParabolicItem>
+                  )}
                 </button>
               </li>
             );
