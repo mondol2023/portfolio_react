@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { BombIntro } from "@/components/motion/bomb-intro";
 import { ScrollVeil } from "@/components/motion/scroll-veil";
 import type { SectionTone } from "@/lib/constants/section-tone";
 import { cn } from "@/lib/utils/cn";
@@ -56,7 +57,8 @@ export function Section({
       className={cn("scroll-mt-24 py-20 sm:py-28", className)}
     >
       <ScrollVeil exit={exit} className="container-page">
-        {children}
+        {/* Bomb-drop intro, once per section, then normal content animations. */}
+        <BombIntro>{children}</BombIntro>
       </ScrollVeil>
     </section>
   );
