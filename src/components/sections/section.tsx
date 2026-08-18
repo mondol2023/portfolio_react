@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { ScrollVeil } from "@/components/motion/scroll-veil";
 import type { SectionTone } from "@/lib/constants/section-tone";
 import { cn } from "@/lib/utils/cn";
+import { BombIntro } from '../motion/bomb-intro';
+
 
 /**
  * Landmark wrapper for every public section.
@@ -56,7 +58,9 @@ export function Section({
       className={cn("scroll-mt-24 py-20 sm:py-28", className)}
     >
       <ScrollVeil exit={exit} className="container-page">
-        {children}
+        
+          {children}
+        
       </ScrollVeil>
     </section>
   );

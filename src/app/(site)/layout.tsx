@@ -1,5 +1,6 @@
 import { VisitTracker } from "@/components/analytics/visit-tracker";
 import { AmbientBackground } from "@/components/layout/ambient-background";
+import { CircuitRoad } from "@/components/motion/circuit-road";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
@@ -36,6 +37,8 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       <VisitTracker />
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
+      {/* Delete this one line to remove the circuit road entirely. */}
+      <CircuitRoad />
       <SkipLink />
       <SiteHeader name={settings.name} />
 

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { ParabolicText } from "@/components/motion/parabolic";
 import { Reveal } from "@/components/motion/reveal";
 import { cn } from "@/lib/utils/cn";
 
@@ -67,12 +66,12 @@ export function SectionHeading({
         ) : null}
 
         <Reveal as="h2" id={id} delay={0.05} className="text-section font-semibold text-fg">
-          <ParabolicText text={title} unit="letter" />
+          {title}
         </Reveal>
 
         {description ? (
           <Reveal as="p" delay={0.1} className="text-lead mt-5 text-fg-muted">
-            <ParabolicText text={description} unit="word" />
+            {description}
           </Reveal>
         ) : null}
       </div>
