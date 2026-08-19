@@ -61,11 +61,19 @@ function clashes(a: SurpriseEffect, b: SurpriseEffect): boolean {
   return Boolean(a.conflicts?.includes(b.id) || b.conflicts?.includes(a.id));
 }
 
-function fits(candidate: SurpriseEffect, chosen: readonly SurpriseEffect[]): boolean {
-  if (chosen.some((picked) => picked.channel === candidate.channel)) return false;
-  if (candidate.loud && chosen.some((picked) => picked.loud)) return false;
+function fits(
+  candidate: SurpriseEffect,
+  chosen: readonly SurpriseEffect[],
+  pinned: readonly SurpriseEffect[],
+): boolean {
+  // At most four entries between them, so the copy is cheaper than three
+  // near-identical passes over two lists.
+  const taken = [...pinned, ...chosen];
 
-  return !chosen.some((picked) => clashes(picked, candidate));
+  if (taken.some((picked) => picked.channel === candidate.channel)) return false;
+  if (candidate.loud && taken.some((picked) => picked.loud)) return false;
+
+  return !taken.some((picked) => clashes(picked, candidate));
 }
 
 /**
@@ -74,12 +82,17 @@ function fits(candidate: SurpriseEffect, chosen: readonly SurpriseEffect[]): boo
  * @param previous What is on the page now. Every id in it is excluded.
  * @param allowAnimated False under `prefers-reduced-motion`, which drops the
  *   moving effects from the pool entirely rather than slowing them down.
+ * @param pinned What the dashboard has switched on permanently. These are not
+ *   the button's to draw or to replace, so they are excluded from the pool —
+ *   and the three composition rules are checked against them as well, because a
+ *   pinned backdrop is just as much a backdrop as a drawn one.
  */
 export function pickCombo(
   previous: readonly SurpriseEffect[],
   allowAnimated: boolean,
+  pinned: readonly SurpriseEffect[] = [],
 ): SurpriseEffect[] {
-  const used = new Set(previous.map((effect) => effect.id));
+  const used = new Set([...previous, ...pinned].map((effect) => effect.id));
 
   const eligible = SURPRISE_EFFECTS.filter(
     (effect) => (allowAnimated || !effect.animated) && !used.has(effect.id),
@@ -89,9 +102,13 @@ export function pickCombo(
    * Only reachable if the registry shrinks to roughly the size of one draw.
    * Repeating something beats doing nothing when a button says "Surprise".
    */
+  const pinnedIds = new Set(pinned.map((effect) => effect.id));
+
   const pool = eligible.length > 0
     ? eligible
-    : SURPRISE_EFFECTS.filter((effect) => allowAnimated || !effect.animated);
+    : SURPRISE_EFFECTS.filter(
+        (effect) => (allowAnimated || !effect.animated) && !pinnedIds.has(effect.id),
+      );
 
   // Reduced motion leaves a smaller, all-static pool; three at once out of it
   // would exhaust the quiet effects in two presses.
@@ -101,7 +118,7 @@ export function pickCombo(
 
   for (const candidate of shuffled(pool)) {
     if (chosen.length >= target) break;
-    if (fits(candidate, chosen)) chosen.push(candidate);
+    if (fits(candidate, chosen, pinned)) chosen.push(candidate);
   }
 
   return chosen;

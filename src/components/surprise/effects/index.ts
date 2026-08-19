@@ -37,7 +37,7 @@ import { vignette } from "./vignette";
  *
  * ```tsx
  * import { scenery } from "@/components/surprise/effects/scenery";
- * import { useSurpriseEffect } from "@/components/surprise/effect";
+ * import { useSurpriseEffect } from "@/components/surprise/use-surprise-effects";
  *
  * useSurpriseEffect(scenery);
  * ```

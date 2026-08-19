@@ -48,6 +48,17 @@ export function revalidateAbout(): void {
 }
 
 /**
+ * Pinned animations are mounted by the public shell, which wraps every site
+ * route — but they change nothing about the content, so the OG image and the
+ * sitemap are left alone.
+ */
+export function revalidateAnimations(): void {
+  revalidateHome();
+  revalidatePath("/projects");
+  revalidatePath("/projects/[slug]", "page");
+}
+
+/**
  * Settings feed the header, footer, metadata and the generated OG image, so
  * every public route is affected.
  */

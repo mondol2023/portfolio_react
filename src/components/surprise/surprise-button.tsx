@@ -1,16 +1,18 @@
 "use client";
 
 import { RotateCcw, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { buttonClasses } from "@/components/ui/button";
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
 import { cn } from "@/lib/utils/cn";
 
 import { BLAST_MS, BombBlast } from "./bomb-blast";
+import { resolveAnimations } from "./catalog";
 import { describeCombo, pickCombo } from "./combo";
-import { useSurpriseEffects, type SurpriseEffect } from "./effect";
+import { type SurpriseEffect } from "./effect";
 import { REVEAL_DIP_MS, revealContents } from "./reveal";
+import { useSurpriseEffects } from "./use-surprise-effects";
 
 /**
  * The whole toy, behind one button.
@@ -21,11 +23,14 @@ import { REVEAL_DIP_MS, revealContents } from "./reveal";
  * grain, square corners. The words on the page never change; only how they are
  * presented does.
  *
- * This file is the *only* thing that knows the effects exist as a set. Every
- * effect in `./effects` and the blast in `./bomb-blast` stand alone and can be
- * used one at a time somewhere else — see the note in `./effects/index.ts`.
- * This is the bundle, so deleting `<SurpriseButton />` from the layout removes
- * the feature entirely and leaves the parts intact for reuse.
+ * Every effect in `./effects` and the blast in `./bomb-blast` stand alone and
+ * can be used one at a time somewhere else — see the note in
+ * `./effects/index.ts`. This is the bundle, so deleting `<SurpriseButton />`
+ * from the layout removes the button and the bomb entirely and leaves the parts
+ * intact for reuse. The other way in is `<SiteAnimations />`, which wears
+ * whatever the dashboard pinned, permanently and without the theatre; the two
+ * are independent, and `pinned` below is only how this one is told to stay out
+ * of the other's way.
  *
  * What gets drawn, and why a draw is always both new and coherent, is in
  * `./combo.ts`. When it gets drawn is a three-way arrangement between this
@@ -49,7 +54,7 @@ import { REVEAL_DIP_MS, revealContents } from "./reveal";
 const NOTE_MS = 3600;
 
 /** Empty screen after the last of the smoke, before the page starts coming back. */
-const PAUSE_MS = 220;
+const PAUSE_MS = 120;
 
 /**
  * How long the page stays blank for a blast: everything from the moment it
@@ -58,13 +63,35 @@ const PAUSE_MS = 220;
 const BLAST_BLANK_MS = BLAST_MS - REVEAL_DIP_MS + PAUSE_MS;
 
 /** Nothing is covering the screen on a reset, so it only dips long enough to swap. */
-const RESET_BLANK_MS = 160;
+const RESET_BLANK_MS = 110;
 
 /** A stable empty array, so resetting does not hand the hook a new identity. */
 const NONE: readonly SurpriseEffect[] = [];
 
-export function SurpriseButton({ className }: { className?: string }) {
+interface SurpriseButtonProps {
+  className?: string;
+  /**
+   * Effect ids the dashboard has switched on for everyone.
+   *
+   * The button neither draws these nor clears them — they are the page's normal
+   * now, and "Back to normal" means back to them. Passing them through matters
+   * for composition rather than bookkeeping: without it a press could deal a
+   * second backdrop on top of a pinned one, which is the exact collision
+   * `./combo.ts` exists to prevent.
+   */
+  pinned?: readonly string[];
+}
+
+export function SurpriseButton({ className, pinned }: SurpriseButtonProps) {
   const still = useMotionPreference();
+
+  // Joined, for the same reason `<SiteAnimations />` does it: the prop is a new
+  // array on every render of the layout above.
+  const pinnedKey = (pinned ?? []).join(",");
+  const held = useMemo(
+    () => resolveAnimations(pinnedKey === "" ? [] : pinnedKey.split(",")),
+    [pinnedKey],
+  );
 
   /** Non-null while a blast is on screen; the value re-keys `BombBlast` to replay it. */
   const [blast, setBlast] = useState<number | null>(null);
@@ -147,11 +174,11 @@ export function SurpriseButton({ className }: { className?: string }) {
   );
 
   const handleBlast = useCallback(() => {
-    const next = pickCombo(running.current, !still);
+    const next = pickCombo(running.current, !still, held);
     if (next.length === 0) return;
 
     change(next, describeCombo(next), BLAST_BLANK_MS);
-  }, [change, still]);
+  }, [change, held, still]);
 
   const handleDone = useCallback(() => setBlast(null), []);
 

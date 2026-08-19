@@ -23,4 +23,6 @@ export const VISIT_TOTALS_DOC = "_totals";
 export const CONTENT_DOCS = {
   about: "about",
   siteSettings: "siteSettings",
+  /** Which surprise animations are pinned on for every visitor. */
+  animations: "animations",
 } as const;

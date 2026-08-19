@@ -9,11 +9,14 @@ import {
 } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AnimationToggles } from "@/components/admin/animation-toggles";
 import { VisitorsPanel } from "@/components/admin/analytics/visitors-panel";
 import { StatCard } from "@/components/admin/stat-card";
+import { ANIMATION_GROUPS } from "@/components/surprise/catalog";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getEnabledAnimations } from "@/lib/firebase/repositories/animations-repository";
 import { getExperiences } from "@/lib/firebase/repositories/experience-repository";
 import { getMessages, getUnreadMessageCount } from "@/lib/firebase/repositories/messages-repository";
 import { getAllProjects } from "@/lib/firebase/repositories/projects-repository";
@@ -34,17 +37,28 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
   const { q, field } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
 
-  const [projects, experiences, skills, messages, unreadCount] = await Promise.all([
+  const [projects, experiences, skills, messages, unreadCount, animations] = await Promise.all([
     getAllProjects(),
     getExperiences(),
     getAllSkills(),
     getMessages(RECENT_LIMIT),
     getUnreadMessageCount(),
+    getEnabledAnimations(),
   ]);
 
   const publishedCount = projects.filter((project) => project.published).length;
   const enabledSkills = skills.filter((skill) => skill.enabled).length;
   const recentProjects = projects.slice(0, RECENT_LIMIT);
+
+  /*
+   * Narrowed to plain text on the way to the client: the catalog is derived
+   * from the effect registry, and handing the whole thing over would drag every
+   * animation module into the admin bundle to render a list of names.
+   */
+  const animationGroups = ANIMATION_GROUPS.map((group) => ({
+    label: group.label,
+    items: group.items.map(({ id, name, description }) => ({ id, name, description })),
+  }));
 
   return (
     <>
@@ -197,6 +211,26 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
       </div>
 
       <VisitorsPanel query={query} field={parseSearchField(field)} />
+
+      <section
+        aria-labelledby="site-animations"
+        className="mt-8 rounded-card border border-border bg-surface"
+      >
+        <div className="border-b border-border px-5 py-4">
+          <h2 id="site-animations" className="text-sm font-semibold text-fg">
+            Site animations
+          </h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-fg-subtle">
+            Everything the surprise button can deal. Switch one on here and the site wears it
+            permanently, for every visitor, with no button press — switch it off and the site goes
+            back to normal. The button carries on working either way; it simply stops dealing
+            whatever is already on. Anything that moves is skipped for visitors who have asked for
+            reduced motion.
+          </p>
+        </div>
+
+        <AnimationToggles groups={animationGroups} enabled={animations} />
+      </section>
 
       <section aria-labelledby="quick-edits" className="mt-8">
         <h2 id="quick-edits" className="text-sm font-semibold text-fg">

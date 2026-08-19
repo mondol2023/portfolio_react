@@ -5,8 +5,10 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 import { JsonLd } from "@/components/seo/json-ld";
+import { SiteAnimations } from "@/components/surprise/site-animations";
 import { SurpriseButton } from "@/components/surprise/surprise-button";
 import { getSiteUrl } from "@/lib/constants/site";
+import { getEnabledAnimations } from "@/lib/firebase/repositories/animations-repository";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 import { resolveSocialLinks } from "@/lib/utils/social";
 
@@ -18,7 +20,11 @@ import { resolveSocialLinks } from "@/lib/utils/social";
  * out simply by living outside this group.
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
-  const settings = await getSiteSettings();
+  const [settings, animations] = await Promise.all([
+    getSiteSettings(),
+    getEnabledAnimations(),
+  ]);
+
   const socials = resolveSocialLinks(settings);
 
   const person: Record<string, unknown> = {
@@ -40,6 +46,8 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       <AmbientBackground />
       {/* Delete this one line to remove the circuit road entirely. */}
       {/* <CircuitRoad /> */}
+      {/* Whatever the dashboard switched on. Nothing at all, until it does. */}
+      <SiteAnimations ids={animations} />
       <SkipLink />
       <SiteHeader name={settings.name} />
 
@@ -49,8 +57,8 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
 
       <SiteFooter settings={settings} />
 
-      {/* Delete this one line to remove the surprise button and every effect it plays. */}
-      <SurpriseButton />
+      {/* Delete this one line to remove the surprise button and the bomb. */}
+      <SurpriseButton pinned={animations} />
     </>
   );
 }

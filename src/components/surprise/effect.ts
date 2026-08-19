@@ -1,18 +1,21 @@
-"use client";
-
-import { useEffect } from "react";
-
 /**
  * The surprise kit — shared contract.
  *
  * Every effect in `./effects` is a plain module that knows how to turn itself
  * on and how to put the page back exactly as it found it. Nothing about an
  * effect is React-shaped: it touches `document` directly and returns its own
- * undo, which is what lets the same file be used three ways —
+ * undo, which is what lets the same file be used four ways —
  *
  *   1. bundled into `<SurpriseButton />`, chosen at random;
- *   2. dropped into any client component with `useSurpriseEffect(scenery)`;
- *   3. called imperatively from anywhere — `const stop = scenery.start()`.
+ *   2. pinned on by the admin dashboard, via `<SiteAnimations />`;
+ *   3. dropped into any client component with `useSurpriseEffect(scenery)`;
+ *   4. called imperatively from anywhere — `const stop = scenery.start()`.
+ *
+ * This module is deliberately *not* a Client Component. It declares types and
+ * DOM helpers, none of which run at import time, so a Server Component can read
+ * the registry's metadata to render a list of what exists — which is what the
+ * admin animation toggles do. The hooks that need `"use client"` live next door
+ * in `./use-surprise-effects.ts`.
  *
  * Effects style the page by appending an unlayered `<style>` to `<head>`.
  * That matters: Tailwind's own rules live in `@layer utilities`, and *any*
@@ -207,34 +210,3 @@ export function fadeIn(element: HTMLElement, opacity: number, ms = 900): void {
   });
 }
 
-/**
- * Runs a single effect for as long as `active` stays true.
- *
- * One line in any client component turns one effect on, and unmounting turns it
- * off. For the button's one-to-three combinations, see `useSurpriseEffects`.
- */
-export function useSurpriseEffect(effect: SurpriseEffect | null, active = true): void {
-  useEffect(() => {
-    if (!effect || !active) return;
-    return effect.start();
-  }, [effect, active]);
-}
-
-/**
- * Runs several effects at once.
- *
- * Pass a stable array — a new array literal on every render would tear the
- * whole set down and rebuild it each time. Teardown runs in reverse, so an
- * effect that layered itself over another is lifted off first.
- */
-export function useSurpriseEffects(effects: readonly SurpriseEffect[], active = true): void {
-  useEffect(() => {
-    if (!active || effects.length === 0) return;
-
-    const stops = effects.map((effect) => effect.start());
-
-    return () => {
-      for (let i = stops.length - 1; i >= 0; i -= 1) stops[i]?.();
-    };
-  }, [effects, active]);
-}
