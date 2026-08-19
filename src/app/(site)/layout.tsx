@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 import { JsonLd } from "@/components/seo/json-ld";
+import { SurpriseButton } from "@/components/surprise/surprise-button";
 import { getSiteUrl } from "@/lib/constants/site";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 import { resolveSocialLinks } from "@/lib/utils/social";
@@ -38,7 +39,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
       {/* Delete this one line to remove the circuit road entirely. */}
-      <CircuitRoad />
+      {/* <CircuitRoad /> */}
       <SkipLink />
       <SiteHeader name={settings.name} />
 
@@ -47,6 +48,9 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       </main>
 
       <SiteFooter settings={settings} />
+
+      {/* Delete this one line to remove the surprise button and every effect it plays. */}
+      <SurpriseButton />
     </>
   );
 }
