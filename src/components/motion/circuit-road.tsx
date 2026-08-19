@@ -59,6 +59,27 @@ const EDGE_PADDING = 12;
 /** Parallel routing beside the trace, as x offsets. Reads as a bus leaving the same header. */
 const BUS_OFFSETS = [-26, -14, 14, 26];
 
+/* ----------------------------------------------------------------- ball -- */
+
+/** Where in the viewport the ball wants to sit — dead centre. */
+const BALL_ANCHOR = 0.5;
+/**
+ * Fraction of the page after which the ball stops holding the centre and walks
+ * down to the end of the road. The page cannot scroll past its own end, so
+ * without this the last half-viewport of trace would never light.
+ */
+const TAIL_START = 0.86;
+/**
+ * How much of the remaining distance the ball covers each frame, at 60fps.
+ * The entry is slow enough to read as a glide down from the corner; the chase
+ * is quick enough that ordinary scrolling keeps the ball near the middle of the
+ * screen rather than trailing off the bottom of it.
+ */
+const ENTRY_EASE = 0.026;
+const CHASE_EASE = 0.11;
+/** Below this the ball is where it wants to be, and the loop stops until scroll wakes it. */
+const SETTLED = 0.2;
+
 /** Cell size of the coarse grid the ambient circuitry is scattered over. */
 const FIELD_CELL_X = 184;
 const FIELD_CELL_Y = 196;
@@ -555,6 +576,8 @@ export function CircuitRoad() {
   const ballRef = useRef<SVGGElement>(null);
   const litRef = useRef<SVGRectElement>(null);
   const fadeRef = useRef<SVGRectElement>(null);
+  /** The ball's document y, held outside the effect so a rebuild does not restart it. */
+  const ballYRef = useRef<number | null>(null);
 
   // `useId` is punctuated, and punctuation inside `url(#…)` is a fight nobody wins.
   const maskId = `circuit-lit-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -602,24 +625,28 @@ export function CircuitRoad() {
   }, [pathname]);
 
   /*
-   * The ball, placed straight from the scroll position — no easing, no
-   * interpolation, nothing that can lag or overshoot. Scroll progress *is* the
-   * ball's document y, and the road's x is a function of that y, so the ball
-   * moves at exactly the speed of the page.
+   * The ball. It is not pinned to the scroll position — it *chases* a target,
+   * and the target is the middle of the viewport.
    *
-   * The earlier version rode the path by arc length, which is what made the
-   * speed uneven: the trace is longer per vertical pixel where the wave is
-   * steep than it is at a crest, so a constant scroll produced a ball that
-   * sprinted through the middle of each swing and dawdled at the turns.
+   * That is what gives it its behaviour for free. At rest the ball is exactly
+   * mid-screen. Scroll, and the target moves out from under it, so the ball
+   * trails behind by an amount proportional to how fast the page is moving —
+   * it holds the middle of the screen at reading speed and falls back a little
+   * when the page is thrown. Stop, and it glides back to the centre. On load it
+   * starts at the top of the road and slides down to the middle, because the
+   * top of the road is simply where it begins and the middle is where it is
+   * always heading.
    *
-   * React is not involved. This writes three attributes, once per frame at
-   * most, and only while the page is actually moving.
+   * The easing is exponential, made frame-rate independent so a 120Hz display
+   * does not travel twice as fast as a 60Hz one. The loop is not a permanent
+   * ticker: it runs while the ball is moving and stops the moment it arrives,
+   * and scroll wakes it again.
    *
-   * Nothing here reads layout. `scrollHeight` used to be read on every frame,
-   * which forces the browser to flush layout before it can answer — on a page
-   * this tall that is a frame's work per frame, and it shows up as stutter. The
-   * height is the one the board was built for, and the viewport only changes on
-   * resize.
+   * React is not involved — this writes three attributes per frame. And nothing
+   * here reads layout: `scrollHeight` used to be read every frame, which forces
+   * the browser to flush layout before it can answer, and on a page this tall
+   * that is a frame's work per frame. The height is the one the board was built
+   * for, and the viewport only changes on resize.
    */
   useEffect(() => {
     if (!board) return;
@@ -629,40 +656,83 @@ export function CircuitRoad() {
     const fade = fadeRef.current;
     if (!ball || !lit || !fade) return;
 
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)");
+
     let frame = 0;
+    let previous = 0;
     let scrollable = Math.max(1, board.height - window.innerHeight);
+    // Kept across board rebuilds — a resize mid-scroll must not send the ball
+    // back to the top of the page to start its entrance over again.
+    let position = ballYRef.current ?? 0;
+    let arrived = ballYRef.current !== null;
 
-    const draw = () => {
-      frame = 0;
-
+    /** Document y the ball is heading for: mid-viewport, the end of the road at the end of the page. */
+    const target = () => {
+      const viewport = window.innerHeight;
       const progress = Math.min(1, Math.max(0, window.scrollY / scrollable));
-      const y = progress * board.height;
-      const x = board.roadX(y);
+      // Smoothstepped so the hand-off from "hold the centre" to "run to the
+      // end" has no kink in it — the ball must not visibly change gear.
+      const t = Math.max(0, (progress - TAIL_START) / (1 - TAIL_START));
+      const anchor = BALL_ANCHOR + (1 - BALL_ANCHOR) * t * t * (3 - 2 * t);
 
-      ball.setAttribute("transform", `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
-      lit.setAttribute("height", y.toFixed(1));
-      fade.setAttribute("y", y.toFixed(1));
+      return Math.min(board.height, window.scrollY + viewport * anchor);
     };
 
-    // Coalesced to a frame so a scroll event storm cannot write the same
-    // attributes twice before the browser has had a chance to paint them.
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(draw);
+    const paint = () => {
+      const x = board.roadX(position);
+
+      ball.setAttribute("transform", `translate(${x.toFixed(2)} ${position.toFixed(2)})`);
+      lit.setAttribute("height", position.toFixed(1));
+      fade.setAttribute("y", position.toFixed(1));
+    };
+
+    const step = (now: number) => {
+      // A tab that was backgrounded returns with an enormous gap; clamped, or
+      // the ball teleports on the first frame back.
+      const elapsed = previous ? Math.min(64, now - previous) : 16.7;
+      previous = now;
+
+      const distance = target() - position;
+
+      if (Math.abs(distance) < SETTLED || still.matches) {
+        position += distance;
+        arrived = true;
+        ballYRef.current = position;
+        paint();
+        frame = 0;
+        return;
+      }
+
+      const ease = arrived ? CHASE_EASE : ENTRY_EASE;
+      position += distance * (1 - Math.pow(1 - ease, elapsed / 16.7));
+      ballYRef.current = position;
+      paint();
+
+      frame = requestAnimationFrame(step);
+    };
+
+    const wake = () => {
+      if (frame) return;
+      // Reset, so the first frame of a fresh run measures against itself rather
+      // than against however long the ball has been sitting still.
+      previous = 0;
+      frame = requestAnimationFrame(step);
     };
 
     const remeasure = () => {
       scrollable = Math.max(1, board.height - window.innerHeight);
-      schedule();
+      wake();
     };
 
-    draw();
+    paint();
+    wake();
 
-    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("scroll", wake, { passive: true });
     window.addEventListener("resize", remeasure);
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("scroll", wake);
       window.removeEventListener("resize", remeasure);
     };
   }, [board]);
