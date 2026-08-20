@@ -4,6 +4,7 @@ import { CircuitRoad } from "@/components/motion/circuit-road";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
+import { WaterRippleClick } from "@/components/layout/water-ripple-click";
 import { PlayButton } from "@/components/play/play-button";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteAnimations } from "@/components/surprise/site-animations";
@@ -49,6 +50,8 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       {/* <CircuitRoad /> */}
       {/* Whatever the dashboard switched on. Nothing at all, until it does. */}
       <SiteAnimations ids={animations} />
+      {/* Click anywhere without clickable content and a droplet ripples out. */}
+      <WaterRippleClick />
       <SkipLink />
       <SiteHeader name={settings.name} />
 

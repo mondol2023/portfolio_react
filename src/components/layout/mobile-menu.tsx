@@ -120,6 +120,7 @@ export function MobileMenu({ activeSection, className }: MobileMenuProps) {
               onClick={close}
               className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
               aria-hidden="true"
+              data-no-ripple
             />
 
             <motion.div

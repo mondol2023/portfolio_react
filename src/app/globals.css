@@ -599,6 +599,34 @@
 }
 
 /*
+ * Water-droplet click ripple.
+ *
+ * Fires on any click that doesn't land on real clickable content — see
+ * `WaterRippleClick`. This is a *refraction* effect, not a colored overlay:
+ * `.water-ripple-layer` holds one full-viewport `.water-ripple` div per
+ * active ripple, each running `backdrop-filter: url(#...)` against an SVG
+ * filter that pushes the pixels *already behind it* outward/inward along a
+ * traveling ring (see the component for the filter graph and the per-frame
+ * math). Nothing here paints a color — the ripple is exactly as transparent
+ * as the page it passes over, and only ever bends what was already there.
+ * The filter's own attributes (feImage size, feDisplacementMap scale) are
+ * driven by `requestAnimationFrame`, not CSS, since those aren't
+ * CSS-animatable — so this class only needs to exist as a mount point.
+ */
+.water-ripple-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.water-ripple {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
  * Reduced motion, part two.
  *
  * The blanket rule in `@layer base` collapses every animation to 0.01ms with a
@@ -638,6 +666,14 @@
   .ambient {
     transition: none;
   }
+
+  /*
+   * `WaterRippleClick` already reads this preference itself and spawns a
+   * much smaller, shorter, lower-amplitude ripple instead of skipping the
+   * effect outright — a `backdrop-filter` distortion has no CSS animation
+   * to defense-in-depth against here, so there's nothing further to do at
+   * this layer.
+   */
 }
 
 @layer utilities {
