@@ -4,6 +4,7 @@ import { CircuitRoad } from "@/components/motion/circuit-road";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
+import { PlayButton } from "@/components/play/play-button";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteAnimations } from "@/components/surprise/site-animations";
 import { SurpriseButton } from "@/components/surprise/surprise-button";
@@ -59,6 +60,9 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
 
       {/* Delete this one line to remove the surprise button and the bomb. */}
       <SurpriseButton pinned={animations} />
+
+      {/* Opposite corner from SurpriseButton — takes visitors to /play. */}
+      <PlayButton />
     </>
   );
 }
