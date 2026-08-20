@@ -536,6 +536,69 @@
 }
 
 /*
+ * Whack-a-mole hammer strike
+ * --------------------------
+ * The hammer itself is animated via inline transitions (see HammerCursor);
+ * these three keyframes are the one-shot accents layered on top: the puff it
+ * vanishes into at its home position, the bang it reappears with above a
+ * hole, and the shockwave ring the hole itself flashes on a hit.
+ */
+@keyframes hammer-puff {
+  from {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.4);
+  }
+}
+
+@keyframes hammer-bang {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-8deg);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2) rotate(6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.6) rotate(0deg);
+  }
+}
+
+@keyframes hole-blast-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+/* The dazed beat between the blast ring and the pop-down: the character
+   wobbles in place while a ring of stars orbits its head. */
+@keyframes dizzy-wobble {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes dizzy-star-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
  * Reduced motion, part two.
  *
  * The blanket rule in `@layer base` collapses every animation to 0.01ms with a

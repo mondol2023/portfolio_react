@@ -21,7 +21,7 @@ export function GameOverlay({ state, score }: GameOverlayProps) {
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col text-white">
       <Link
-        href="/"
+        href="/play"
         className="pointer-events-auto absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm backdrop-blur hover:bg-black/60"
       >
         <ArrowLeft aria-hidden="true" className="size-4" />
