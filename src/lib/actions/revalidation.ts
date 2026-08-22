@@ -58,6 +58,13 @@ export function revalidateAnimations(): void {
   revalidatePath("/projects/[slug]", "page");
 }
 
+/** Same set of routes as `revalidateAnimations` — the ripple is mounted by the same public shell. */
+export function revalidateRipple(): void {
+  revalidateHome();
+  revalidatePath("/projects");
+  revalidatePath("/projects/[slug]", "page");
+}
+
 /**
  * Settings feed the header, footer, metadata and the generated OG image, so
  * every public route is affected.

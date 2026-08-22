@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { TechMarquee } from "@/components/skills/tech-marquee";
+import { useQuest } from "@/lib/game/quest/use-quest";
 import {
   PROFICIENCY_LABELS,
   SKILL_CATEGORY_LABELS,
@@ -42,12 +43,19 @@ function toRows(skills: readonly Skill[]): Skill[][] {
 
 export function TechChain({ skills }: { skills: Skill[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const { exploreSkills } = useQuest();
   const rows = toRows(skills);
   const active = skills.find((skill) => skill.id === activeId) ?? null;
 
   // A second click on the same pill puts it back — the zoom is a toggle, not a
   // trap, and there is nowhere else to click that would obviously dismiss it.
-  const select = (id: string) => setActiveId((current) => (current === id ? null : id));
+  const select = (id: string) => {
+    // The quest layer only wants to know that the visitor interrogated the
+    // stack at all, so it is recorded here rather than per skill — and it is
+    // recorded even on the deselecting click, which is still an interaction.
+    exploreSkills();
+    setActiveId((current) => (current === id ? null : id));
+  };
 
   return (
     <div>

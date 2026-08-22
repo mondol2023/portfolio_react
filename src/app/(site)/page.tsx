@@ -1,3 +1,4 @@
+import { DesktopPanes } from "@/components/desktop/desktop-panes";
 import { About } from "@/components/sections/about";
 import { Contact } from "@/components/sections/contact";
 import { Experience } from "@/components/sections/experience";
@@ -46,13 +47,15 @@ export default async function HomePage() {
   const techIcons = buildTechIconMap(skills);
 
   return (
-    <>
+    // One section per screen: the wrapper gives each child a full viewport and a
+    // snap point, so scrolling advances the desktop rather than the document.
+    <DesktopPanes>
       <Hero settings={settings} />
       <About about={about} />
       <Skills skills={skills} />
       <Projects projects={featuredProjects} totalCount={allProjects.length} />
       <Experience experiences={experiences} techIcons={techIcons} />
       <Contact settings={settings} />
-    </>
+    </DesktopPanes>
   );
 }

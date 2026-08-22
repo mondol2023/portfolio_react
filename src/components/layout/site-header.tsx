@@ -2,11 +2,14 @@
 
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useEffect } from "react";
 
+import { GameHud } from "@/components/layout/game-hud";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { DURATION, EASE_OUT } from "@/components/motion/variants";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NAV_ITEMS, SECTION_IDS } from "@/lib/constants/navigation";
+import { useQuest } from "@/lib/game/quest/use-quest";
 import { useActiveSection } from "@/lib/hooks/use-active-section";
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
 import { useScrollDirection } from "@/lib/hooks/use-scroll-direction";
@@ -32,8 +35,17 @@ export function SiteHeader({ name }: SiteHeaderProps) {
   const { direction, isAtTop } = useScrollDirection();
   const activeSection = useActiveSection(SECTION_IDS);
   const reducedMotion = useMotionPreference();
+  const { visitSection } = useQuest();
 
   const hidden = direction === "down" && !isAtTop;
+
+  // The scroll-spy this header already runs is the only section observer on the
+  // page, so the quest layer rides along with it rather than adding a second.
+  // `visitSection` is idempotent — repeat calls for a section already recorded
+  // return the same state object and React bails out of the re-render.
+  useEffect(() => {
+    if (activeSection) visitSection(activeSection);
+  }, [activeSection, visitSection]);
 
   return (
     <motion.header
@@ -53,13 +65,19 @@ export function SiteHeader({ name }: SiteHeaderProps) {
               : "border-border bg-surface/80 shadow-sm backdrop-blur-xl",
           )}
         >
-          <Link
-            href="/#home"
-            className="rounded-full px-2 py-1 text-sm font-semibold tracking-tight text-fg transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            {name}
-            <span className="text-accent">.</span>
-          </Link>
+          {/* Wordmark and quest readout travel together on the left: the pill
+              is an annotation on where you are, not another control. */}
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/#home"
+              className="rounded-full px-2 py-1 text-sm font-semibold tracking-tight text-fg transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {name}
+              <span className="text-accent">.</span>
+            </Link>
+
+            <GameHud />
+          </div>
 
           {/* Everything that is not the wordmark sits together on the right, so
               the bar reads as name on one end and controls on the other. */}

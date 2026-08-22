@@ -39,7 +39,11 @@ export function Hero({ settings }: { settings: SiteSettings }) {
       // No scroll veil here: the hero animates on mount, and fading the first
       // screen in from a scroll position it starts at would mean fading it in
       // from nothing on load.
-      className="relative isolate scroll-mt-24 overflow-hidden pt-36 pb-20 sm:pt-44 sm:pb-28"
+      // Symmetric padding, unlike every other section's: the extra top space
+      // used to clear a fixed header, and the desktop shell puts its bar at the
+      // bottom instead. Left asymmetric, the hero would sit visibly low in the
+      // screen it is centred in.
+      className="relative isolate scroll-mt-24 overflow-hidden py-20 sm:py-28"
     >
       {/* Decorative only — hidden from assistive tech and non-interactive. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">

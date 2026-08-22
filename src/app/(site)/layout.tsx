@@ -1,8 +1,10 @@
+import { AchievementQueue } from "@/components/layout/achievement-queue";
 import { VisitTracker } from "@/components/analytics/visit-tracker";
+import { DesktopChrome } from "@/components/desktop/desktop-chrome";
+import { TaskbarSpacer } from "@/components/desktop/taskbar-spacer";
 import { AmbientBackground } from "@/components/layout/ambient-background";
 import { CircuitRoad } from "@/components/motion/circuit-road";
 import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 import { WaterRippleClick } from "@/components/layout/water-ripple-click";
 import { PlayButton } from "@/components/play/play-button";
@@ -11,6 +13,7 @@ import { SiteAnimations } from "@/components/surprise/site-animations";
 import { SurpriseButton } from "@/components/surprise/surprise-button";
 import { getSiteUrl } from "@/lib/constants/site";
 import { getEnabledAnimations } from "@/lib/firebase/repositories/animations-repository";
+import { getRippleEnabled } from "@/lib/firebase/repositories/ripple-repository";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 import { resolveSocialLinks } from "@/lib/utils/social";
 
@@ -22,9 +25,10 @@ import { resolveSocialLinks } from "@/lib/utils/social";
  * out simply by living outside this group.
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
-  const [settings, animations] = await Promise.all([
+  const [settings, animations, rippleEnabled] = await Promise.all([
     getSiteSettings(),
     getEnabledAnimations(),
+    getRippleEnabled(),
   ]);
 
   const socials = resolveSocialLinks(settings);
@@ -50,10 +54,12 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       {/* <CircuitRoad /> */}
       {/* Whatever the dashboard switched on. Nothing at all, until it does. */}
       <SiteAnimations ids={animations} />
-      {/* Click anywhere without clickable content and a droplet ripples out. */}
-      <WaterRippleClick />
+      {/* Click anywhere without clickable content and a droplet ripples out — until the admin switches it off. */}
+      {rippleEnabled ? <WaterRippleClick /> : null}
       <SkipLink />
-      <SiteHeader name={settings.name} />
+      {/* Wallpaper, shortcut dock and taskbar. Replaces the old top header —
+          `site-header.tsx` and `mobile-menu.tsx` are still on disk, unused. */}
+      <DesktopChrome name={settings.name} />
 
       <main id="main" className="flex-1">
         {children}
@@ -61,11 +67,17 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
 
       <SiteFooter settings={settings} />
 
+      {/* The taskbar is fixed; this is the strip it would otherwise cover. */}
+      <TaskbarSpacer />
+
       {/* Delete this one line to remove the surprise button and the bomb. */}
       <SurpriseButton pinned={animations} />
 
       {/* Opposite corner from SurpriseButton — takes visitors to /play. */}
       <PlayButton />
+
+      {/* Quest rewards. Public shell only: the dashboard is work, not a game. */}
+      <AchievementQueue />
     </>
   );
 }

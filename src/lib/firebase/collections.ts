@@ -25,4 +25,6 @@ export const CONTENT_DOCS = {
   siteSettings: "siteSettings",
   /** Which surprise animations are pinned on for every visitor. */
   animations: "animations",
+  /** Whether the water-droplet click ripple is switched on for every visitor. */
+  rippleEffect: "rippleEffect",
 } as const;

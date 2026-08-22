@@ -2,9 +2,10 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { buttonClasses } from "@/components/ui/button";
+import { useQuest } from "@/lib/game/quest/use-quest";
 import { WHACK_CONFIG } from "@/lib/whack-a-mole/config";
 import { GameState } from "@/lib/whack-a-mole/types";
 import { useWhackAMole } from "@/lib/whack-a-mole/use-whack-a-mole";
@@ -18,6 +19,12 @@ export function WhackAMoleGame() {
   // A fresh object per hit — HammerCursor keys its strike animation off identity,
   // so re-hitting the same hole still retriggers the sequence.
   const [strike, setStrike] = useState<HammerStrike | null>(null);
+  const { playGame } = useQuest();
+
+  // Same rule as the snake page: the round has to actually begin.
+  useEffect(() => {
+    if (state === GameState.PLAYING) playGame("whack-a-mole");
+  }, [state, playGame]);
 
   const handleHit = (index: number, rect: DOMRect) => {
     hit(index);

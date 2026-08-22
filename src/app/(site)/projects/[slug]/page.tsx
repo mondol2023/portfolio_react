@@ -9,6 +9,7 @@ import { Reveal } from "@/components/motion/reveal";
 import { CaseStudyBlock } from "@/components/projects/case-study-block";
 import { ProjectCard } from "@/components/projects/project-card";
 import { ProjectGallery } from "@/components/projects/project-gallery";
+import { QuestVisit } from "@/components/projects/quest-visit";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -195,6 +196,8 @@ export default async function ProjectDetailPage({ params }: PageProps<"/projects
 
   return (
     <>
+      <QuestVisit projectId={project.id} />
+
       <JsonLd
         data={{
           "@context": "https://schema.org",

@@ -190,7 +190,8 @@ export function SurpriseButton({ className, pinned }: SurpriseButtonProps) {
 
       <div
         className={cn(
-          "pointer-events-none fixed right-4 bottom-4 z-40 flex flex-col items-end gap-2 sm:right-6 sm:bottom-6",
+          // `bottom-18` rather than `bottom-4`: the taskbar owns the last 56px.
+          "pointer-events-none fixed right-4 bottom-18 z-40 flex flex-col items-end gap-2 sm:right-6",
           className,
         )}
       >
