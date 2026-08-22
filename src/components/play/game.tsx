@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { GameEngine } from "@/lib/game/game-engine";
-import { useQuest } from "@/lib/game/quest/use-quest";
 import { GameState } from "@/lib/game/types";
 
 import { GameOverlay } from "./game-overlay";
@@ -20,14 +19,6 @@ export function Game() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<GameState>(GameState.IDLE);
   const [score, setScore] = useState(0);
-  const { playGame } = useQuest();
-
-  // Credited on the first frame of actual play, not on arrival: opening the
-  // page and reading the start screen is not playing a game. The store dedupes,
-  // so restarting after a crash does not pay twice.
-  useEffect(() => {
-    if (state === GameState.PLAYING) playGame("snake");
-  }, [state, playGame]);
 
   useEffect(() => {
     const container = containerRef.current;

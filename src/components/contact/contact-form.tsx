@@ -10,7 +10,6 @@ import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { submitContactMessage } from "@/lib/actions/contact-actions";
-import { useQuest } from "@/lib/game/quest/use-quest";
 import { contactDefaults, contactSchema, type ContactInput } from "@/lib/validation/contact-schema";
 
 /**
@@ -28,7 +27,6 @@ type Status = "idle" | "submitting" | "sent";
 export function ContactForm() {
   const [status, setStatus] = useState<Status>("idle");
   const { toast } = useToast();
-  const { completeMission } = useQuest();
 
   const {
     register,
@@ -59,9 +57,6 @@ export function ContactForm() {
 
     reset(contactDefaults);
     setStatus("sent");
-    // After the write succeeded, never before: the quest layer sits on top of
-    // the Firebase flow and must not be able to affect whether it ran.
-    completeMission();
     toast({
       variant: "success",
       title: "Message sent",

@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion } from "motion/react";
 
-import { GameHud } from "@/components/layout/game-hud";
 import { DURATION, EASE_OUT } from "@/components/motion/variants";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { SectionTone } from "@/lib/constants/section-tone";
@@ -88,7 +87,6 @@ export function Taskbar({ name, activeSection, tone }: TaskbarProps) {
 
         {/* The tray. Everything here is a control or a readout, never a link. */}
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-          <GameHud />
           <ThemeToggle className="hidden md:inline-flex" />
           <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
           <TaskbarClock />

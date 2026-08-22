@@ -5,7 +5,6 @@ import { MotionProvider } from "@/components/motion/motion-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { getSiteUrl } from "@/lib/constants/site";
-import { QuestProvider } from "@/lib/game/quest/quest-context";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 
 import "./globals.css";
@@ -107,13 +106,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
           <MotionProvider>
-            {/* Root rather than the `(site)` group: a project case study and
-                the `/play` routes live outside that group and still record
-                progress. The provider renders no UI of its own — the visible
-                quest surfaces are mounted inside the public shell. */}
-            <QuestProvider>
-              <ToastProvider>{children}</ToastProvider>
-            </QuestProvider>
+            <ToastProvider>{children}</ToastProvider>
           </MotionProvider>
         </ThemeProvider>
       </body>

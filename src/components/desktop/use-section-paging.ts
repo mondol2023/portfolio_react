@@ -2,65 +2,42 @@
 
 import { useEffect } from "react";
 
+import { getLenis } from "@/components/experience/scroll/lenis-registry";
+
 import { TASKBAR_HEIGHT_PX } from "./desktop-config";
 
 /**
- * Turns the page into screens.
+ * Scroll offsets for the desktop shell.
  *
- * One section per viewport, scroll snapping between them — the "scrolling brings
- * the next section" half of the desktop metaphor. The wrappers that make each
- * section a full screen are in `desktop-panes.tsx`; this hook only decides when
- * the snapping is switched on, and fixes up the scroll offsets that the old
- * fixed *top* header used to need.
+ * This hook used to own the paging too, via CSS `scroll-snap-type` on <html>.
+ * It no longer does: Lenis animates `scrollTop` itself and native snapping
+ * yanks the position mid-tween, so snapping moved to `lenis/snap` inside
+ * `smooth-scroll.tsx`, which reproduces the same `proximity` behaviour and the
+ * same breakpoint rules. What is left here is the offset fix-up, which is not
+ * Lenis's business.
  *
- * Three deliberate limits:
- *
- *  - `proximity`, never `mandatory`. Projects and Experience can be taller than
- *    the viewport, and mandatory snapping fights a reader trying to stop in the
- *    middle of one.
- *  - Off below 768×640. On a phone a snap point every screen turns an ordinary
- *    flick into a fight, and the sections are taller than the viewport anyway.
- *  - Off under `prefers-reduced-motion`. Snapping is motion the visitor did not
- *    ask for; without it the page is simply a long scroll, which still works.
- *
- * The styles go on `<html>` as inline properties rather than a class, and the
+ * The styles go on <html> as inline properties rather than a class, and the
  * previous values are restored on unmount, so nothing leaks into `/admin` or
  * `/play` — which render outside this shell and never mount the hook.
  */
 
-const PAGING_QUERY = "(min-width: 768px) and (min-height: 640px)";
-const STILL_QUERY = "(prefers-reduced-motion: reduce)";
-
 export function useSectionPaging() {
   useEffect(() => {
     const root = document.documentElement;
-    const paging = window.matchMedia(PAGING_QUERY);
-    const still = window.matchMedia(STILL_QUERY);
 
     const previous = {
-      scrollSnapType: root.style.scrollSnapType,
       scrollPaddingTop: root.style.scrollPaddingTop,
       scrollPaddingBottom: root.style.scrollPaddingBottom,
     };
 
-    function apply() {
-      // `globals.css` reserves 6rem at the top for a header that this shell does
-      // not have. The obstruction is now at the bottom, so the reservation moves
-      // with it — otherwise every anchor jump lands 96px too low and the last
-      // line of a section hides behind the taskbar.
-      root.style.scrollPaddingTop = "0px";
-      root.style.scrollPaddingBottom = `${TASKBAR_HEIGHT_PX}px`;
-      root.style.scrollSnapType = paging.matches && !still.matches ? "y proximity" : "";
-    }
-
-    apply();
-    paging.addEventListener("change", apply);
-    still.addEventListener("change", apply);
+    // `globals.css` reserves 6rem at the top for a header that this shell does
+    // not have. The obstruction is now at the bottom, so the reservation moves
+    // with it — otherwise every anchor jump lands 96px too low and the last
+    // line of a section hides behind the taskbar.
+    root.style.scrollPaddingTop = "0px";
+    root.style.scrollPaddingBottom = `${TASKBAR_HEIGHT_PX}px`;
 
     return () => {
-      paging.removeEventListener("change", apply);
-      still.removeEventListener("change", apply);
-      root.style.scrollSnapType = previous.scrollSnapType;
       root.style.scrollPaddingTop = previous.scrollPaddingTop;
       root.style.scrollPaddingBottom = previous.scrollPaddingBottom;
     };
@@ -84,8 +61,16 @@ export function scrollToSection(id: string): boolean {
   if (!section) return false;
 
   const target = section.closest("[data-pane]") ?? section;
-  const still = window.matchMedia(STILL_QUERY).matches;
+  const lenis = getLenis();
 
+  // Lenis is absent under reduced motion and on routes outside the site shell;
+  // the native path is the correct fallback rather than a degraded one.
+  if (lenis) {
+    lenis.scrollTo(target as HTMLElement, { offset: 0, duration: 1.1 });
+    return true;
+  }
+
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
   return true;
 }

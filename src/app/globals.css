@@ -49,6 +49,14 @@
   /* Ambient grid / glow strength, tuned per theme */
   --grid-line: rgba(26, 22, 20, 0.045);
   --glow: rgba(194, 65, 12, 0.1);
+
+  /* Boot sequence — deliberately identical in both themes. The loader plays
+     before the page exists, and covering the whole viewport in near-black is
+     precisely how it prevents a white flash on a cold load. */
+  --boot-bg: #07080b;
+  --boot-fg: #e6f4f4;
+  --boot-dim: #55666f;
+  --boot-signal: #22d3ee;
 }
 
 .dark {
@@ -169,6 +177,11 @@
   --color-tone: var(--tone);
   --color-tone-soft: var(--tone-soft);
 
+  --color-boot-bg: var(--boot-bg);
+  --color-boot-fg: var(--boot-fg);
+  --color-boot-dim: var(--boot-dim);
+  --color-boot-signal: var(--boot-signal);
+
   --color-bg: var(--bg);
   --color-bg-subtle: var(--bg-subtle);
   --color-surface: var(--surface);
@@ -227,6 +240,21 @@
     background-color: var(--accent);
     color: var(--accent-fg);
   }
+
+  /* The custom cursor sets this flag on <html> while it is mounted, and only
+     then does the system pointer go away. If it never hydrates, or unmounts on
+     a coarse-pointer device, the visitor keeps a normal cursor. Text fields are
+     deliberately left alone: an I-beam tells you where the caret will land, and
+     no drawn ring communicates that as well. */
+  html[data-custom-cursor="on"],
+  html[data-custom-cursor="on"] * {
+    cursor: none;
+  }
+
+  html[data-custom-cursor="on"] :is(input, textarea, [contenteditable="true"]) {
+    cursor: text;
+  }
+
 
   :focus-visible {
     outline: 2px solid var(--accent);

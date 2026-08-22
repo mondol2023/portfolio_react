@@ -1,6 +1,8 @@
-import { AchievementQueue } from "@/components/layout/achievement-queue";
 import { VisitTracker } from "@/components/analytics/visit-tracker";
 import { DesktopChrome } from "@/components/desktop/desktop-chrome";
+import { CustomCursor } from "@/components/experience/cursor/custom-cursor";
+import { BootLoader } from "@/components/experience/loader/boot-loader";
+import { SmoothScroll } from "@/components/experience/scroll/smooth-scroll";
 import { TaskbarSpacer } from "@/components/desktop/taskbar-spacer";
 import { AmbientBackground } from "@/components/layout/ambient-background";
 import { CircuitRoad } from "@/components/motion/circuit-road";
@@ -45,8 +47,17 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
   };
 
   return (
-    <>
+    <SmoothScroll>
       <JsonLd data={person} />
+
+      {/* Cold-load cinematic. Mounted first so it paints over everything below
+          before those components have measured anything. */}
+      <BootLoader name={settings.name} />
+
+      {/* Mouse and trackpad only; it removes itself on touch and stands down
+          under reduced motion. */}
+      <CustomCursor />
+
       <VisitTracker />
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
@@ -75,9 +86,6 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
 
       {/* Opposite corner from SurpriseButton — takes visitors to /play. */}
       <PlayButton />
-
-      {/* Quest rewards. Public shell only: the dashboard is work, not a game. */}
-      <AchievementQueue />
-    </>
+    </SmoothScroll>
   );
 }

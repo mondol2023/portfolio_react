@@ -1,6 +1,10 @@
 import { ArrowDownRight, ArrowUpRight, Mail } from "lucide-react";
 
-import { AnimatedText } from "@/components/motion/animated-text";
+import { EnterWorld } from "@/components/experience/hero/enter-world";
+import { HeroCanvas } from "@/components/experience/hero/hero-canvas";
+import { ParallaxLayer } from "@/components/experience/hero/parallax-layer";
+import { CipherHeading } from "@/components/experience/text/cipher-heading";
+import { ScrambleText } from "@/components/experience/text/scramble-text";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { buttonClasses } from "@/components/ui/button";
 import type { AvailabilityStatus, SiteSettings } from "@/lib/types/content";
@@ -8,15 +12,16 @@ import { cn } from "@/lib/utils/cn";
 import { resolveEmailLink, resolveSocialLinks } from "@/lib/utils/social";
 
 /**
- * Hero.
+ * Hero — the entrance to the world.
  *
- * Deliberately photo-free: the first screen sells the work, not a headshot.
- * The entrance runs on mount (nothing above it to scroll past) and follows a
- * fixed reading order — status, name, title, positioning, description, actions,
- * links — so the sequence matches the way the block is meant to be read.
+ * Two layers, deliberately independent. Behind: a Three.js environment that
+ * parallaxes with the pointer and dives forward when the visitor commits.
+ * In front: ordinary DOM in a fixed reading order — status, greeting, name,
+ * role, positioning, actions, links — which is the whole hero on its own if the
+ * canvas never loads, is switched off for reduced motion, or fails outright.
  *
- * A server component: every animated part is an already-client primitive, so
- * this file itself ships no JavaScript.
+ * Still a server component: every animated part is an already-client primitive,
+ * so this file itself ships no JavaScript.
  */
 
 const AVAILABILITY_DOT: Record<AvailabilityStatus, string> = {
@@ -51,104 +56,123 @@ export function Hero({ settings }: { settings: SiteSettings }) {
         <div className="glow-accent absolute inset-x-0 top-0 h-[32rem]" />
       </div>
 
+      {/* The 3D layer sits above the flat backdrop and below the copy. It loads
+          after the page is interactive and is absent on the server. */}
+      <HeroCanvas />
+
       <div className="container-page">
-        <Stagger triggerOnMount delayChildren={0.08} step={0.09} className="max-w-4xl">
-          <StaggerItem>
-            <p className="inline-flex items-center gap-2.5 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-medium text-fg-muted backdrop-blur-sm">
-              <span className="relative flex size-2">
-                {isAvailable ? (
+        <ParallaxLayer depth={14}>
+          <Stagger triggerOnMount delayChildren={0.08} step={0.09} className="max-w-4xl">
+            <StaggerItem>
+              <p className="inline-flex items-center gap-2.5 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-medium text-fg-muted backdrop-blur-sm">
+                <span className="relative flex size-2">
+                  {isAvailable ? (
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute inline-flex size-full animate-ping rounded-full opacity-60",
+                        AVAILABILITY_DOT[settings.availabilityStatus],
+                      )}
+                    />
+                  ) : null}
                   <span
                     aria-hidden="true"
                     className={cn(
-                      "absolute inline-flex size-full animate-ping rounded-full opacity-60",
+                      "relative inline-flex size-2 rounded-full",
                       AVAILABILITY_DOT[settings.availabilityStatus],
                     )}
                   />
-                ) : null}
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "relative inline-flex size-2 rounded-full",
-                    AVAILABILITY_DOT[settings.availabilityStatus],
-                  )}
-                />
-              </span>
-              {settings.availabilityLabel}
-            </p>
-          </StaggerItem>
-
-          <AnimatedText
-            as="h1"
-            text={settings.name}
-            delay={0.18}
-            className="mt-8 text-display font-semibold text-fg"
-          />
-
-          <StaggerItem className="mt-6 flex items-center gap-4">
-            <span aria-hidden="true" className="h-px w-10 bg-border-strong" />
-            <p className="font-serif text-2xl text-accent italic sm:text-3xl">{settings.title}</p>
-          </StaggerItem>
-
-          <StaggerItem className="mt-8 max-w-2xl space-y-4">
-            <p className="text-lead font-medium text-fg">{settings.tagline}</p>
-            <p className="text-lead text-fg-muted">{settings.description}</p>
-          </StaggerItem>
-
-          <StaggerItem className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-            {/*
-             * Plain anchors, not `<Link>`. Both targets are sections of this
-             * same page, and the App Router skips its scroll handler when a
-             * navigation produces no new cache node — which is every same-route
-             * hash link, so `/#contact` would update the URL and go nowhere.
-             * The browser's own anchor handling has no such gap, and it already
-             * honours the `scroll-behavior` and `scroll-padding-top` set on
-             * <html>. It also costs no JavaScript and no prefetch of a route we
-             * are already on.
-             */}
-            <a href="#projects" className={buttonClasses("primary", "lg")}>
-              View selected work
-              <ArrowDownRight className="size-4" aria-hidden="true" />
-            </a>
-            <a href="#contact" className={buttonClasses("secondary", "lg")}>
-              <Mail className="size-4" aria-hidden="true" />
-              Get in touch
-            </a>
-          </StaggerItem>
-
-          {socials.length > 0 || email ? (
-            <StaggerItem className="mt-12">
-              <ul className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                {email ? (
-                  <li>
-                    <a
-                      href={email.href}
-                      className="text-sm text-fg-muted underline-offset-4 transition-colors hover:text-fg hover:underline"
-                    >
-                      {email.display}
-                    </a>
-                  </li>
-                ) : null}
-                {socials.map((social) => (
-                  <li key={social.href}>
-                    <a
-                      href={social.href}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="group inline-flex items-center gap-1 text-sm text-fg-muted underline-offset-4 transition-colors hover:text-fg hover:underline"
-                    >
-                      {social.label}
-                      <ArrowUpRight
-                        aria-hidden="true"
-                        className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                      />
-                      <span className="sr-only">(opens in a new tab)</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
+                </span>
+                {settings.availabilityLabel}
+              </p>
             </StaggerItem>
-          ) : null}
-        </Stagger>
+
+            <StaggerItem className="mt-8">
+              <ScrambleText
+                text="Hello, I'm"
+                delay={0.4}
+                className="label-mono block text-tone"
+              />
+            </StaggerItem>
+
+            {/* Character stagger rather than the site-wide word stagger: this
+                one line is the first thing on the screen and earns the cost. */}
+            <CipherHeading
+              as="h1"
+              text={settings.name}
+              delay={0.24}
+              className="mt-3 text-display font-semibold text-fg"
+            />
+
+            <StaggerItem className="mt-6 flex items-center gap-4">
+              <span aria-hidden="true" className="h-px w-10 bg-border-strong" />
+              <p className="font-serif text-2xl text-accent italic sm:text-3xl">{settings.title}</p>
+            </StaggerItem>
+
+            <StaggerItem className="mt-8 max-w-2xl space-y-4">
+              <p className="text-lead font-medium text-fg">{settings.tagline}</p>
+              <p className="text-lead text-fg-muted">{settings.description}</p>
+            </StaggerItem>
+
+            <StaggerItem className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <EnterWorld target="about" />
+              {/*
+               * Plain anchors, not `<Link>`. Both targets are sections of this
+               * same page, and the App Router skips its scroll handler when a
+               * navigation produces no new cache node — which is every same-route
+               * hash link, so `/#contact` would update the URL and go nowhere.
+               * The browser's own anchor handling has no such gap, and it already
+               * honours the `scroll-behavior` and `scroll-padding-top` set on
+               * <html>. It also costs no JavaScript and no prefetch of a route we
+               * are already on.
+               */}
+              <a href="#projects" data-cursor="link" className={buttonClasses("secondary", "lg")}>
+                View selected work
+                <ArrowDownRight className="size-4" aria-hidden="true" />
+              </a>
+              <a href="#contact" data-cursor="link" className={buttonClasses("ghost", "lg")}>
+                <Mail className="size-4" aria-hidden="true" />
+                Get in touch
+              </a>
+            </StaggerItem>
+
+            {socials.length > 0 || email ? (
+              <StaggerItem className="mt-12">
+                <ul className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                  {email ? (
+                    <li>
+                      <a
+                        href={email.href}
+                        data-cursor="link"
+                        className="text-sm text-fg-muted underline-offset-4 transition-colors hover:text-fg hover:underline"
+                      >
+                        {email.display}
+                      </a>
+                    </li>
+                  ) : null}
+                  {socials.map((social) => (
+                    <li key={social.href}>
+                      <a
+                        href={social.href}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        data-cursor="link"
+                        className="group inline-flex items-center gap-1 text-sm text-fg-muted underline-offset-4 transition-colors hover:text-fg hover:underline"
+                      >
+                        {social.label}
+                        <ArrowUpRight
+                          aria-hidden="true"
+                          className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                        />
+                        <span className="sr-only">(opens in a new tab)</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </StaggerItem>
+            ) : null}
+          </Stagger>
+        </ParallaxLayer>
       </div>
     </section>
   );

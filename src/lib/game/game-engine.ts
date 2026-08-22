@@ -25,7 +25,7 @@ export class GameEngine {
   private readonly sceneManager: SceneManager;
   private readonly lifecycleControls: LifecycleControls;
   private readonly events = new EventBus<GameEvents>();
-  private readonly clock = new THREE.Clock();
+  private readonly timer = new THREE.Timer();
 
   private state: GameState = GameState.IDLE;
   private score = 0;
@@ -43,6 +43,8 @@ export class GameEngine {
       onPause: () => this.pause(),
       onResume: () => this.resume(),
     });
+    this.timer.connect(document); // Page Visibility API: a hidden tab reports a zero delta
+
     this.sceneManager.render(); // one static frame for the idle screen
   }
 
@@ -68,7 +70,7 @@ export class GameEngine {
     this.events.emit("score", this.score);
     this.setState(GameState.PLAYING);
 
-    this.clock.getDelta(); // discard idle time so the first tick's delta is small
+    this.timer.reset(); // discard idle time so the first tick's delta is small
     this.frameId = requestAnimationFrame(this.tick);
   }
 
@@ -79,10 +81,12 @@ export class GameEngine {
     this.snake.steerTowards(angle);
   }
 
-  private readonly tick = (): void => {
+  private readonly tick = (timestamp: number): void => {
     if (!this.snake || !this.food) return;
 
-    const deltaSeconds = Math.min(this.clock.getDelta(), MAX_FRAME_SECONDS);
+    // One update per frame, so every getDelta() below this line agrees.
+    this.timer.update(timestamp);
+    const deltaSeconds = Math.min(this.timer.getDelta(), MAX_FRAME_SECONDS);
     this.snake.update(deltaSeconds);
 
     const head = this.snake.getHeadPosition();
@@ -114,7 +118,7 @@ export class GameEngine {
   /** Continues a paused run. Only valid while paused — a no-op from any other state. */
   private resume(): void {
     if (this.state !== GameState.PAUSED) return;
-    this.clock.getDelta(); // discard time spent paused so the next tick's delta stays small
+    this.timer.reset(); // discard time spent paused so the next tick's delta stays small
     this.setState(GameState.PLAYING);
     this.frameId = requestAnimationFrame(this.tick);
   }
@@ -147,6 +151,7 @@ export class GameEngine {
   /** Full teardown — call once, when the React component unmounts. */
   destroy(): void {
     this.teardownRun();
+    this.timer.dispose();
     this.lifecycleControls.dispose();
     this.sceneManager.dispose();
     this.events.clear();

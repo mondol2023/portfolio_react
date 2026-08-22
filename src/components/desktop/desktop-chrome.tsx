@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-
+import { ScrollRail } from "@/components/experience/scroll/scroll-rail";
 import { SECTION_IDS } from "@/lib/constants/navigation";
-import { useQuest } from "@/lib/game/quest/use-quest";
 import { useActiveSection } from "@/lib/hooks/use-active-section";
 
 import { toneForSection } from "./desktop-config";
@@ -21,7 +19,6 @@ import { WallpaperField } from "./wallpaper-field";
  *   useActiveSection  →  tone      →  which wallpaper is showing
  *                     →  activeSection → which shortcut is lit, which task the
  *                                        taskbar says is in focus
- *                     →  visitSection  → the quest layer
  *
  * That one-observer rule is load-bearing. `useActiveSection` builds an
  * `IntersectionObserver` per *call site*, so having the wallpaper run its own
@@ -32,14 +29,6 @@ import { WallpaperField } from "./wallpaper-field";
 
 export function DesktopChrome({ name }: { name: string }) {
   const activeSection = useActiveSection(SECTION_IDS);
-  const { visitSection } = useQuest();
-
-  // The quest rides along with the scroll-spy above rather than adding a second
-  // observer. `visitSection` is idempotent — repeat calls for a section already
-  // recorded return the same state object and React bails out of the re-render.
-  useEffect(() => {
-    if (activeSection) visitSection(activeSection);
-  }, [activeSection, visitSection]);
 
   useSectionPaging();
 
@@ -50,6 +39,8 @@ export function DesktopChrome({ name }: { name: string }) {
       <WallpaperField tone={tone} />
       <IconDock activeSection={activeSection} />
       <Taskbar name={name} activeSection={activeSection} tone={tone} />
+      {/* Fed from the scroll-spy above rather than running its own observer. */}
+      <ScrollRail activeSection={activeSection} />
     </>
   );
 }
