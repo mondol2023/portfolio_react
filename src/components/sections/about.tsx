@@ -1,23 +1,44 @@
-import { Reveal } from "@/components/motion/reveal";
-import { Stagger, StaggerItem } from "@/components/motion/stagger";
+import { HudPanel } from "@/components/experience/profile/hud-panel";
+import { HudShell } from "@/components/experience/profile/hud-shell";
+import { PlayerCard } from "@/components/experience/profile/player-card";
+import { StatCounter } from "@/components/experience/profile/stat-counter";
 import { DemoBadge } from "@/components/ui/demo-badge";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { isDemoAboutStats } from "@/lib/constants/demo-content";
-import type { About as AboutContent } from "@/lib/types/content";
+import type { About as AboutContent, SiteSettings } from "@/lib/types/content";
+import type { PlayerLevel } from "@/lib/utils/career";
 
 import { Section, headingId } from "./section";
 
 /**
- * About.
+ * About — the player profile.
  *
- * Three prose blocks plus optional statistics, all owned by the `about/main`
- * Firestore document. The statistics grid disappears entirely when the owner
- * has not entered any — an empty row of zeroes would be worse than nothing.
+ * The same three prose blocks and statistics the `about/main` document has
+ * always owned, presented as a game readout: an identity card that turns with
+ * the pointer, panels that assemble from different edges, statistics that count
+ * up, and a scan line crossing the whole thing.
+ *
+ * The framing is the only thing that is invented. PLAYER, CLASS, REGION and
+ * STATUS are the site settings the owner already fills in, and LEVEL is derived
+ * from the real work history — nothing here is a number chosen to look good.
+ *
+ * A server component: every animated part below is an already-client primitive,
+ * so this file ships no JavaScript of its own.
  */
 
 const SECTION_ID = "about";
 
-export function About({ about }: { about: AboutContent }) {
+/** Panels arrive from alternating edges so the grid assembles rather than fades. */
+const STAT_EDGES = ["top", "bottom", "top", "bottom"] as const;
+
+interface AboutProps {
+  about: AboutContent;
+  settings: SiteSettings;
+  /** Null when there is no dated work history to derive a level from. */
+  level: PlayerLevel | null;
+}
+
+export function About({ about, settings, level }: AboutProps) {
   const hasStats = about.stats.length > 0;
   const demoStats = isDemoAboutStats(about.stats);
 
@@ -25,41 +46,61 @@ export function About({ about }: { about: AboutContent }) {
     <Section id={SECTION_ID} tone="about">
       <SectionHeading
         id={headingId(SECTION_ID)}
-        eyebrow="01 — About"
+        eyebrow="01 — Player profile"
         title="The short version"
         description={about.introduction}
         note={demoStats ? <DemoBadge label="Sample statistics" /> : null}
       />
 
-      <div className="mt-16 grid gap-px overflow-hidden rounded-card border border-border bg-border md:grid-cols-2">
-        <Reveal className="bg-surface p-8 sm:p-10">
-          <p className="label-mono mb-4">Philosophy</p>
-          <p className="text-base leading-relaxed text-fg-muted">{about.philosophy}</p>
-        </Reveal>
+      <HudShell className="mt-14">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-start">
+          <PlayerCard
+            name={settings.name}
+            title={settings.title}
+            location={settings.location}
+            availabilityStatus={settings.availabilityStatus}
+            availabilityLabel={settings.availabilityLabel}
+            level={level}
+          />
 
-        <Reveal delay={0.08} className="bg-surface p-8 sm:p-10">
-          <p className="label-mono mb-4">Where I work</p>
-          <p className="text-base leading-relaxed text-fg-muted">{about.summary}</p>
-        </Reveal>
-      </div>
+          <div className="grid gap-6">
+            <HudPanel label="Philosophy" from="right">
+              <p className="text-base leading-relaxed text-fg-muted">{about.philosophy}</p>
+            </HudPanel>
 
-      {hasStats ? (
-        <Stagger
-          as="dl"
-          className="mt-12 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4"
-          aria-label="Key statistics"
-        >
-          {about.stats.map((stat) => (
-            <StaggerItem key={`${stat.label}-${stat.value}`}>
-              <dt className="label-mono">{stat.label}</dt>
-              <dd className="mt-3 text-4xl font-semibold tracking-tight text-fg">{stat.value}</dd>
-              {stat.detail ? (
-                <dd className="mt-2 text-sm leading-relaxed text-fg-subtle">{stat.detail}</dd>
-              ) : null}
-            </StaggerItem>
-          ))}
-        </Stagger>
-      ) : null}
+            <HudPanel label="Where I work" from="right" delay={0.1}>
+              <p className="text-base leading-relaxed text-fg-muted">{about.summary}</p>
+            </HudPanel>
+          </div>
+        </div>
+
+        {hasStats ? (
+          <dl
+            aria-label="Key statistics"
+            className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4"
+          >
+            {about.stats.map((stat, index) => (
+              <HudPanel
+                key={`${stat.label}-${stat.value}`}
+                // `as` is not available here, so the panel stays a div and the
+                // term/description pair lives inside it. `dl` permits that as
+                // long as each group is wrapped, which is exactly what this is.
+                from={STAT_EDGES[index % STAT_EDGES.length] ?? "top"}
+                delay={index * 0.06}
+                className="p-5 sm:p-6"
+              >
+                <dt className="label-mono text-fg-subtle">{stat.label}</dt>
+                <dd className="mt-3 text-4xl font-semibold tracking-tight text-fg">
+                  <StatCounter value={stat.value} />
+                </dd>
+                {stat.detail ? (
+                  <dd className="mt-2 text-sm leading-relaxed text-fg-subtle">{stat.detail}</dd>
+                ) : null}
+              </HudPanel>
+            ))}
+          </dl>
+        ) : null}
+      </HudShell>
     </Section>
   );
 }

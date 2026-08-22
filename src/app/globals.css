@@ -735,3 +735,50 @@
     white-space: nowrap;
   }
 }
+
+/*
+ * Player profile HUD
+ * ------------------
+ * The About section reads as a game readout: a scan line sweeping down the
+ * panel and a slowly rotating sigil in place of a headshot. Both are CSS
+ * animations rather than Motion loops — neither reads state or needs a decision
+ * per frame, so neither should cost a JavaScript frame while the Skills galaxy
+ * below is rendering.
+ */
+@layer components {
+  .hud-scanline {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /*
+     * The element fills its container and carries the band as a background
+     * strip rather than being the band itself. That is what lets the sweep be a
+     * pure `translateY` in percentages — a percentage translate resolves
+     * against the moving element's own box, so a short element could never
+     * express "travel the height of the panel".
+     */
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        var(--tone-soft),
+        transparent
+      )
+      top left / 100% 8rem no-repeat;
+    animation: hud-scan 7s linear infinite;
+  }
+}
+
+@keyframes hud-scan {
+  from {
+    transform: translateY(-8rem);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sigil-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

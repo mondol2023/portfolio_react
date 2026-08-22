@@ -13,6 +13,7 @@ import {
 } from "@/lib/firebase/repositories/projects-repository";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 import { getEnabledSkills } from "@/lib/firebase/repositories/skills-repository";
+import { playerLevel } from "@/lib/utils/career";
 import { buildTechIconMap } from "@/lib/utils/tech-icons";
 
 /**
@@ -46,12 +47,18 @@ export default async function HomePage() {
   // skills. Matching them here keeps both sections reading from one source.
   const techIcons = buildTechIconMap(skills);
 
+  // The About HUD reports a level rather than inventing one, so it is derived
+  // from the dated work history here — on the server, at revalidate time, where
+  // reading the clock is a data concern rather than something a component does
+  // during render.
+  const level = playerLevel(experiences);
+
   return (
     // One section per screen: the wrapper gives each child a full viewport and a
     // snap point, so scrolling advances the desktop rather than the document.
     <DesktopPanes>
       <Hero settings={settings} />
-      <About about={about} />
+      <About about={about} settings={settings} level={level} />
       <Skills skills={skills} />
       <Projects projects={featuredProjects} totalCount={allProjects.length} />
       <Experience experiences={experiences} techIcons={techIcons} />
