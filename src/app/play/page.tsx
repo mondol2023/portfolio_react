@@ -1,10 +1,17 @@
-import { ArrowLeft, Gamepad2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { ArcadeExit, ArcadeScope } from "@/components/play/arcade-chrome";
+
 /**
- * Game selection hub. `PlayButton` on the main site links here; each card
+ * Cabinet select. `PlayButton` on the main site links here; each cartridge
  * below links to a fullscreen game route.
+ *
+ * Written as the same cabinet as the Project Arcade rather than as a separate
+ * app: numbered slots, mono channel labels, the arcade's own rose tone. The
+ * emoji stays — it is the one thing on the screen doing the job a cartridge
+ * label art does, and replacing it with an icon would make both cards look
+ * like buttons.
  */
 
 export const metadata: Metadata = {
@@ -29,38 +36,43 @@ const GAMES = [
 
 export default function PlaySelectPage() {
   return (
-    <div className="fixed inset-0 flex flex-col bg-black text-white">
-      <Link
-        href="/"
-        className="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm backdrop-blur hover:bg-white/20"
-      >
-        <ArrowLeft aria-hidden="true" className="size-4" />
-        Back to site
-      </Link>
+    <ArcadeScope className="surface-grid fixed inset-0 flex flex-col bg-bg text-fg">
+      <ArcadeExit href="/" label="Return to portfolio" className="absolute top-4 left-4" />
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-10 px-6 text-center">
         <div>
-          <h1 className="flex items-center justify-center gap-2 text-3xl font-semibold">
-            <Gamepad2 aria-hidden="true" className="size-8" />
-            Pick a game
-          </h1>
-          <p className="mt-2 text-white/60">Two to choose from. Both playable with just a mouse.</p>
+          <p className="font-mono text-[11px] tracking-[0.24em] text-tone uppercase">
+            Game mode — cabinet select
+          </p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight">Insert a cartridge</h1>
+          <p className="mt-3 text-sm text-fg-muted">
+            Two in the machine. Both playable with just a mouse.
+          </p>
         </div>
 
-        <div className="grid w-full max-w-2xl gap-4 sm:grid-cols-2">
-          {GAMES.map((game) => (
-            <Link
-              key={game.href}
-              href={game.href}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-8 text-center transition-colors hover:border-white/25 hover:bg-white/10"
-            >
-              <span className="text-5xl">{game.emoji}</span>
-              <span className="text-xl font-semibold">{game.title}</span>
-              <span className="text-sm text-white/60">{game.description}</span>
-            </Link>
+        <ul className="grid w-full max-w-2xl gap-4 sm:grid-cols-2">
+          {GAMES.map((game, index) => (
+            <li key={game.href}>
+              <Link
+                href={game.href}
+                className="group flex h-full flex-col items-center gap-3 rounded-card border border-border bg-surface/70 p-8 text-center backdrop-blur-sm transition-colors hover:border-tone hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tone"
+              >
+                <span className="font-mono text-[11px] tracking-[0.24em] text-fg-subtle uppercase">
+                  Slot {String(index + 1).padStart(2, "0")}
+                </span>
+                <span aria-hidden="true" className="text-5xl">
+                  {game.emoji}
+                </span>
+                <span className="text-xl font-semibold tracking-tight">{game.title}</span>
+                <span className="text-sm text-fg-muted">{game.description}</span>
+                <span className="mt-auto pt-4 font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase transition-colors group-hover:text-tone">
+                  [ Insert coin ]
+                </span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
-    </div>
+    </ArcadeScope>
   );
 }

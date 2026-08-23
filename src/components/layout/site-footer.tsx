@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { MagneticSocials } from "@/components/experience/footer/magnetic-socials";
+import { PlanetCanvas } from "@/components/experience/footer/planet-canvas";
+import { SystemStatus } from "@/components/experience/footer/system-status";
 import { CallButton } from "@/components/ui/call-button";
-import { SocialButtons } from "@/components/ui/social-buttons";
 import { NAV_ITEMS } from "@/lib/constants/navigation";
 import type { SiteSettings } from "@/lib/types/content";
 import {
@@ -12,8 +14,16 @@ import {
 } from "@/lib/utils/social";
 
 /**
- * Site footer. A Server Component — it renders content and links, nothing here
- * needs the browser.
+ * Site footer — the far edge of the world.
+ *
+ * Still a Server Component: the content and the links do not need the browser.
+ * Three children do, and each owns its own client boundary rather than pushing
+ * this whole file across one — the planet, the status readout and the magnetic
+ * marks.
+ *
+ * `data-tone="contact"` is load-bearing, not decorative: it is the scope
+ * `planet-scene.tsx` resolves `--tone` against, so the globe picks up the same
+ * blue the contact section ends on and the page closes in one colour.
  */
 export function SiteFooter({ settings }: { settings: SiteSettings }) {
   const socials = resolveSocialLinks(settings);
@@ -23,7 +33,19 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-24 border-t border-border bg-bg-subtle">
+    <footer
+      data-tone="contact"
+      className="relative isolate mt-24 overflow-hidden border-t border-border bg-bg-subtle"
+    >
+      {/*
+       * The planet sits behind the columns, bleeding off the right edge so it
+       * reads as something the page is leaving rather than a widget parked in a
+       * box. It takes itself off the page entirely below `sm` — on a phone it
+       * would be a third of the screen of WebGL for pure atmosphere, and the
+       * footer's job there is the links.
+       */}
+      <PlanetCanvas className="absolute -top-10 -right-24 -z-10 size-[26rem] opacity-70 lg:-right-10 lg:size-[32rem]" />
+
       <div className="container-page py-14 sm:py-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
@@ -73,13 +95,13 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
             {/*
              * One row: the call button is a mark like the rest, so it lines up
              * with them rather than claiming a heading of its own down here.
-             * `SocialButtons` brings its own gap, and this outer flex supplies
+             * `MagneticSocials` brings its own gap, and this outer flex supplies
              * the matching one between the two groups.
              */}
             {phoneHref || socials.length > 0 ? (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {phoneHref ? <CallButton href={phoneHref} /> : null}
-                <SocialButtons links={socials} />
+                <MagneticSocials links={socials} />
               </div>
             ) : null}
           </div>
@@ -89,9 +111,12 @@ export function SiteFooter({ settings }: { settings: SiteSettings }) {
           <p className="text-xs text-fg-subtle">
             &copy; {year} {settings.name}. All rights reserved.
           </p>
-          <p className="text-xs text-fg-subtle">
-            Built with Next.js, Tailwind CSS and Firebase.
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+            <SystemStatus />
+            <p className="text-xs text-fg-subtle">
+              Built with Next.js, Tailwind CSS and Firebase.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

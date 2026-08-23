@@ -48,6 +48,19 @@ export interface GalaxyNode {
   size: number;
   /** Radians per second. Inner planets travel faster, as they should. */
   speed: number;
+  /**
+   * How well the technology is known, carried through so the scene can dress
+   * the planet accordingly — a ring, a halo, or nothing at all. Proficiency is
+   * content, so it belongs on the node; what it *looks* like is the scene's
+   * business, and stays there.
+   */
+  proficiency?: ProficiencyLevel;
+  /**
+   * Position within its own orbit. The scene walks the category hue a little
+   * further with each step, so two planets sharing a ring are still tellable
+   * apart, and gives each one a different idle tumble.
+   */
+  variant: number;
 }
 
 export interface GalaxyLayout {
@@ -191,6 +204,8 @@ export function buildGalaxy(skills: readonly Skill[], maxNodes: number): GalaxyL
         // Kepler's third law, roughly: the far orbits crawl. Sharing one speed
         // would make the whole thing turn like a printed disc.
         speed: BASE_SPEED / Math.sqrt(radius),
+        proficiency: skill.proficiency,
+        variant: position,
       });
     });
   });

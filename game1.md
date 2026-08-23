@@ -46,6 +46,15 @@ pass extracts something the next one will want.
 | Magnetic hover | `src/components/experience/magnetic.tsx` |
 | 3D tilt surface + depth layers | `src/components/experience/tilt-card.tsx` |
 | Scene run gate (in view + tab focused) | `src/lib/experience/use-scene-active.ts` |
+| Hand-rolled focus trap (for non-`<dialog>` modals) | `src/lib/hooks/use-focus-trap.ts` |
+| Smoothed scroll velocity (motion value, not state) | `src/lib/experience/use-scroll-velocity.ts` |
+| Self-drawing rail, caller places it | `src/components/motion/scroll-progress-line.tsx` (`railClassName` prop) |
+| Project status derived from `liveUrl`/`endDate` | `src/lib/utils/project-status.ts` |
+| Per-section scroll entrance/exit, six shapes | `src/components/motion/scroll-veil.tsx` (`variant` prop, mapped from tone in `sections/section.tsx`) |
+| Typing → sound-wave amplitude | `src/lib/experience/use-typing-pulse.ts` |
+| Social marks as one shared SVG set | `src/components/ui/social-icon.tsx` |
+| Game-mode chrome (scope, exit, score, panel, action) | `src/components/play/arcade-chrome.tsx` |
+| Per-skill-category hue, shared by WebGL and CSS | `src/lib/constants/skill-palette.ts` + `--skill-*` on `[data-tone="stack"]`, `.skill-chip` in `globals.css` |
 
 ---
 
@@ -115,19 +124,53 @@ pass extracts something the next one will want.
 
 ### Experience — "THE TIMELINE MACHINE"
 
-- [ ] Time-travel tunnel: self-drawing centre line, glitching dates, cards sliding in,
+- [x] Time-travel tunnel: self-drawing centre line, glitching dates, cards sliding in,
       background shifting per era, particles accelerating with scroll velocity.
-- [ ] 3D tilt cards (reuse `TiltCard`) and magnetic buttons.
-- [ ] Click expands a role into a modal scene.
+      `src/components/experience/timeline/`
+- [x] 3D tilt cards (reuse `TiltCard`) and magnetic buttons.
+- [x] Click expands a role into a modal scene.
 
 ### Projects — "PROJECT ARCADE"
 
-- [ ] Floating cartridges / 3D cards: NAME, TECH STACK, DESCRIPTION, STATUS,
-      `[ PLAY PROJECT ]`.
-- [ ] Hover: 3D rotate, internal parallax, glow, particles.
-- [ ] Click expands the card while the others move away.
-- [ ] **Animated browser-window preview** — simulated loading, floating tech badges, a
-      live cursor. Never a static screenshot.
+- [x] Floating cartridges / 3D cards: NAME, TECH STACK, DESCRIPTION, STATUS,
+      `[ PLAY PROJECT ]`. `src/components/experience/arcade/`
+- [x] Hover: 3D rotate, internal parallax (reuse `TiltCard`), glow (reuse `TiltCard`
+      `glare`), particles (shared `ArcadeCanvas` background, not one canvas per card).
+- [x] Click expands the card while the others move away — `layoutId` shared-element
+      morph from `Cartridge` into `ExpandedCartridge`, siblings fade/scale back.
+- [x] **Animated browser-window preview** — simulated loading, floating tech badges, a
+      live cursor. Never a static screenshot. `browser-preview.tsx`
+
+### Review fixes
+
+Caught reviewing the pass, all landed:
+
+- [x] **Overlay escaped its section.** `ExpandedCartridge` is `position: fixed`, but
+      every section sits inside `ScrollVeil`, which animates `y` — a transformed
+      ancestor becomes the containing block for fixed descendants, so the scrim and
+      panel were pinned to the section box and scrolled with it. Now portalled into
+      `<body>`. Anything `fixed` added inside a `Section` from here on has the same
+      problem; `<dialog>.showModal()` (as `RoleScene` uses) is immune.
+- [x] **Focus was dropped on close.** Selecting a cartridge unmounts it, so the focus
+      trap had no trigger to return to. The restored cartridge claims focus itself
+      (`restoreFocus`).
+- [x] **Rail missed its markers on mobile.** The rail was centred at every breakpoint
+      while the row nodes only move to the centre at `md`. `position="center"` replaced
+      by `railClassName`, so the caller places both with the same classes.
+- [x] **The glitch was never seen.** `ScrambleText` resolved on mount, i.e. while the
+      section was still off screen. It now takes an `active` prop, driven by the era
+      the reader has actually reached.
+- [x] Ring brightness damps instead of stepping; particle field opts out of a stale
+      frustum-cull box; spark burst maps the pointer through the canvas rect rather
+      than the window; browser preview animates the cursor on a transform instead of
+      `left`/`top`, and its badges wait for the loading bar.
+
+### Close-out
+
+- [x] Lint, typecheck, production build. Green: the only remaining `npm run lint`
+      failure is the pre-existing `share-donut.tsx:39` immutability error (admin
+      analytics, untouched by these passes).
+- [ ] Review checkpoint with the user.
 
 ---
 
@@ -135,21 +178,55 @@ pass extracts something the next one will want.
 
 ### Contact — "OPEN A TRANSMISSION"
 
-- [ ] Terminal boot: `ESTABLISHING CONNECTION…` → `READY TO RECEIVE TRANSMISSION.`
-- [ ] Progressive form, animated labels, focus-reactive borders, sound-wave typing visual.
-- [ ] TRANSMIT button that charges, then a success state.
+`src/components/experience/transmission/`
+
+- [x] Terminal boot: `ESTABLISHING CONNECTION…` → `READY TO RECEIVE TRANSMISSION.`
+      `terminal-boot.tsx`. The reduced-motion log is *derived* in render, not written
+      by the effect — setting it there tripped `react-hooks/set-state-in-effect`.
+- [x] Progressive form, animated labels, focus-reactive borders, sound-wave typing
+      visual. `transmission-form.tsx` + `wave-form.tsx`; amplitude comes from
+      `use-typing-pulse.ts`, which decays on its own so a paused typist quiets the bars
+      rather than freezing them mid-height.
+- [x] TRANSMIT button that charges, then a success state. `transmit-button.tsx`.
+- [x] The email address stays a plain link beside the form. A form that fails for any
+      reason must never be the only way to reach someone.
 
 ### Footer
 
-- [ ] Animated planet, `SYSTEM STATUS: ONLINE`, magnetic social icons.
+`src/components/experience/footer/`
+
+- [x] Animated planet — wireframe globe, tilted ring, one orbiting satellite, the same
+      dust as the hero. `planet-scene.tsx` / `planet-canvas.tsx`.
+- [x] `SYSTEM STATUS: ONLINE` — `system-status.tsx`. It reports something true: the
+      readout only claims ONLINE once the page has actually hydrated, and says STATIC
+      before that (and forever, for anyone who never gets JavaScript).
+- [x] Magnetic social icons — `magnetic-socials.tsx`, sharing `ui/social-icon.tsx` with
+      the non-interactive copy in the contact panel so the two rows cannot drift apart.
 
 ### Polish
 
-- [ ] Section transitions that differ from one another — no repeated fade-ins.
-- [ ] Lazy loading / Suspense / dynamic imports audited across every scene.
-- [ ] Reduced-motion and low-tier passes over the whole page.
-- [ ] Keyboard walk-through of the entire experience; visible focus everywhere.
-- [ ] Mobile pass: heavy scenes simplified, interactivity kept.
+- [x] **Section transitions that differ from one another.** `ScrollVeil` grew a
+      `variant` (`fade` / `rise` / `expand` / `tilt` / `settle` / `zoom`), mapped from
+      each section's tone in `section.tsx`. Only `y`, `scale` and `rotateX` vary:
+      nothing in the app sets `overflow-x: hidden`, so any horizontal travel would have
+      given the whole document a scrollbar.
+- [x] **Lazy loading / dynamic imports audited across every scene.** All five scenes now
+      use the same pair — `next/dynamic({ssr:false, loading: () => null})` plus
+      `useSceneActive`. `hero-canvas.tsx` was the last holdout, carrying a hand-rolled
+      copy of the hook that predated it.
+- [x] **Reduced-motion and low-tier passes.** Every `repeat: Infinity` consults
+      `useMotionPreference`, every `useFrame` guards on `still`, `useSceneBudget` already
+      applies `stillBudget()` itself, and the skills universe falls back to the Chain
+      view on low tier. Nothing is deleted under reduced motion — it holds still.
+- [x] **Keyboard walk-through; visible focus everywhere.** `SkipLink` is rendered,
+      `:focus-visible` is global in `globals.css`, `input.tsx`'s `focus:outline-none` is
+      paired with a visible ring, no `onClick` sits on a non-interactive element, and
+      every mouse-only effect (magnet, tilt, spark burst) is decoration over a control
+      that still works from the keyboard.
+- [x] **Mobile pass.** The footer planet is not rendered at all below `sm` — a
+      `display: none` canvas still builds a WebGL context and holds it for the life of
+      the page, which on a phone is a real context bought for something nobody can see.
+      `classify()` already caps coarse-pointer/narrow devices at the `low` budget.
 
 ---
 
@@ -157,7 +234,29 @@ pass extracts something the next one will want.
 
 Already present and kept: `PLAY` button → mini-game selector → Neon Snake and
 Whack-a-Mole under `/play`, with `GAME OVER / SCORE / [ PLAY AGAIN ] [ RETURN TO
-PORTFOLIO ]`. Revisit during Pass 4 polish so its shell matches the rebuilt sections.
+PORTFOLIO ]`.
+
+- [x] Shell rebuilt in the same language as the rest of the site:
+      `src/components/play/arcade-chrome.tsx` (`ArcadeScope`, `ArcadeExit`,
+      `ArcadeScore`, `ArcadePanel`, `ArcadeAction`, `ArcadeActionLink`), applied to
+      `game-overlay.tsx`, the whack-a-mole chrome and `/play` (now a cabinet select).
+- [x] `[ RETURN TO PORTFOLIO ]` added beside `[ PLAY AGAIN ]`, which the spec called for
+      and the overlay did not have.
+- [x] Game logic untouched: `lifecycle-controls.ts` binds one delegated `document`
+      listener by `closest('#id')`, so the markup could change freely as long as
+      `play-btn` / `resume-btn` / `restart-btn` / `pause-btn` survived. `ArcadeAction`
+      spreads every button prop to guarantee that.
+
+### Close-out
+
+- [x] Lint, typecheck, production build. Green: `tsc --noEmit` clean, `next build` clean,
+      and the only remaining lint *error* repo-wide is the pre-existing
+      `share-donut.tsx:39` one (admin analytics, untouched by these passes).
+- [x] `use-typing-pulse.ts` caught by the repo-wide sweep: a `useCallback` RAF loop that
+      scheduled itself read its own binding before declaration
+      (`react-hooks/immutability`). The loop is now a hoisted function declaration inside
+      `bump`.
+- [ ] Review checkpoint with the user.
 
 ---
 
@@ -166,3 +265,7 @@ PORTFOLIO ]`. Revisit during Pass 4 polish so its shell matches the rebuilt sect
 - [ ] `react-hooks/immutability` error at `src/components/admin/analytics/share-donut.tsx:39`
       (`offset -= percent`). Pre-existing, committed, unrelated to this work — it fails
       `npm run lint` repo-wide until fixed.
+- [ ] `react-hooks/incompatible-library` warning at
+      `src/components/experience/transmission/transmission-form.tsx:97` (`watch()`).
+      A React Compiler skip notice inherent to React Hook Form, which the repo already
+      uses elsewhere — a warning, not a failure.

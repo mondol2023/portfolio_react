@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
 
+import { useSceneActive } from "@/lib/experience/use-scene-active";
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
 
 /**
@@ -14,9 +14,10 @@ import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
  * here — the section renders one small client island, and Three.js, drei and
  * the scene arrive in a separate chunk after the page is interactive.
  *
- * It also owns the question "should the scene be running at all", because that
- * answer depends on the DOM (is the hero on screen, is the tab visible) and the
- * scene should not have to reach outside its own canvas to find out.
+ * "Should the scene be running at all" is `useSceneActive`'s question — on
+ * screen, and in a foreground tab. This file used to hand-roll that pair of
+ * observers itself, from before the hook existed; every other scene on the page
+ * now shares the hook, and the hero has no reason to answer it differently.
  */
 
 const HeroScene = dynamic(() => import("./hero-scene"), {
@@ -29,36 +30,7 @@ const HeroScene = dynamic(() => import("./hero-scene"), {
 
 export function HeroCanvas() {
   const reducedMotion = useMotionPreference();
-  const host = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(true);
-  const [tabActive, setTabActive] = useState(true);
-
-  useEffect(() => {
-    const element = host.current;
-    if (!element) return;
-
-    // A third IntersectionObserver in this app, and the justification the
-    // codebase asks for: the two existing ones watch section *entry* to drive
-    // navigation state, at thresholds tuned for that. This one asks a different
-    // question — is any pixel of the canvas on screen — and answering it wrong
-    // means a WebGL loop burning a laptop battery six sections away.
-    const observer = new IntersectionObserver(
-      ([entry]) => setVisible(entry?.isIntersecting ?? true),
-      { rootMargin: "120px" },
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    function onVisibility() {
-      setTabActive(document.visibilityState === "visible");
-    }
-
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
+  const [host, active] = useSceneActive<HTMLDivElement>();
 
   return (
     <div
@@ -68,7 +40,7 @@ export function HeroCanvas() {
       // scene fades into the page instead of ending on a visible seam.
       className="pointer-events-none absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
     >
-      <HeroScene active={visible && tabActive} still={reducedMotion} />
+      <HeroScene active={active} still={reducedMotion} />
     </div>
   );
 }

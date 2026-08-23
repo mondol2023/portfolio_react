@@ -37,10 +37,15 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
     <ReactLenis
       root
       options={{
-        // Slightly under Lenis's 0.1 default: heavier, more cinematic glide,
-        // still short enough that a flick feels answered rather than delayed.
-        lerp: 0.085,
-        wheelMultiplier: 0.9,
+        // Just over Lenis's 0.1 default. The previous 0.085 read as lag rather
+        // than weight: a notch of the wheel took most of a second to settle,
+        // and every scroll-driven effect on the page — veils, rails, the
+        // tunnel dolly — inherited that delay, so the whole site felt behind
+        // the pointer. This still glides; it just arrives.
+        lerp: 0.12,
+        // 1:1 with the wheel. Damping the input as well as the output made a
+        // full flick cover less ground than a native scroll would.
+        wheelMultiplier: 1,
         // Touch is left native. Syncing it costs the platform's own overscroll
         // and momentum, which readers on a phone notice immediately.
         syncTouch: false,
@@ -89,8 +94,12 @@ function PaneSnapping() {
         // `proximity`, never `mandatory`: Projects and Experience can outgrow
         // the viewport and a reader must be able to stop inside one.
         type: "proximity",
-        distanceThreshold: "20%",
-        duration: 0.9,
+        // Snapping fires once the wheel has gone quiet, so it should only
+        // finish a movement the reader already made. At 20% it reached out for
+        // positions they had deliberately stopped at, which is the one way a
+        // proximity snap can still feel like being grabbed.
+        distanceThreshold: "12%",
+        duration: 0.7,
       });
 
       snap.addElements(Array.from(document.querySelectorAll<HTMLElement>("[data-pane]")), {
@@ -107,14 +116,16 @@ function PaneSnapping() {
     };
   }, [lenis]);
 
-  // The taskbar is fixed over the last strip of every pane; Lenis reads this
+  // The taskbar is fixed over the first strip of every pane; Lenis reads this
   // padding when it resolves an anchor target, so a jump lands clear of it.
+  // It hides on the way down, but an anchor jump is a scroll *up* as often as
+  // not, and landing under a bar that is about to reappear is the worse miss.
   useEffect(() => {
     const root = document.documentElement;
-    const previous = root.style.scrollPaddingBottom;
-    root.style.scrollPaddingBottom = `${TASKBAR_HEIGHT_PX}px`;
+    const previous = root.style.scrollPaddingTop;
+    root.style.scrollPaddingTop = `${TASKBAR_HEIGHT_PX}px`;
     return () => {
-      root.style.scrollPaddingBottom = previous;
+      root.style.scrollPaddingTop = previous;
     };
   }, []);
 

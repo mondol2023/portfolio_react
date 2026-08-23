@@ -21,11 +21,13 @@ export function DesktopPanes({ children }: { children: ReactNode }) {
   return (
     <>
       {Children.map(children, (child) => (
-        // `pb-14` matches the taskbar, so centred content is centred in the
-        // space the visitor can actually see.
+        // `pt-14` matches the taskbar, so centred content is centred in the
+        // space the visitor can actually see. It stays reserved even though the
+        // bar hides on scroll: the padding is what centres a pane, and content
+        // that re-centred every time the bar came and went would breathe.
         <div
           data-pane
-          className="flex min-h-dvh w-full snap-start flex-col justify-center pb-14"
+          className="flex min-h-dvh w-full snap-start flex-col justify-center pt-14"
         >
           {child}
         </div>

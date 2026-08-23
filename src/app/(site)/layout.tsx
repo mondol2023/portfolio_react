@@ -1,9 +1,7 @@
 import { VisitTracker } from "@/components/analytics/visit-tracker";
 import { DesktopChrome } from "@/components/desktop/desktop-chrome";
-import { CustomCursor } from "@/components/experience/cursor/custom-cursor";
 import { BootLoader } from "@/components/experience/loader/boot-loader";
 import { SmoothScroll } from "@/components/experience/scroll/smooth-scroll";
-import { TaskbarSpacer } from "@/components/desktop/taskbar-spacer";
 import { AmbientBackground } from "@/components/layout/ambient-background";
 import { CircuitRoad } from "@/components/motion/circuit-road";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -54,10 +52,6 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
           before those components have measured anything. */}
       <BootLoader name={settings.name} />
 
-      {/* Mouse and trackpad only; it removes itself on touch and stands down
-          under reduced motion. */}
-      <CustomCursor />
-
       <VisitTracker />
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
@@ -77,9 +71,6 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       </main>
 
       <SiteFooter settings={settings} />
-
-      {/* The taskbar is fixed; this is the strip it would otherwise cover. */}
-      <TaskbarSpacer />
 
       {/* Delete this one line to remove the surprise button and the bomb. */}
       <SurpriseButton pinned={animations} />

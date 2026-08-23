@@ -18,9 +18,9 @@ export function PlayButton({ className }: PlayButtonProps) {
     <Link
       href="/play"
       className={cn(
-        // `bottom-18` clears the taskbar at every breakpoint — the bar is fixed
-        // and 56px tall, so a 16px offset would tuck this underneath it.
-        "fixed bottom-18 left-4 z-40 sm:left-6",
+        // The taskbar moved to the top, so the bottom corners are free again
+        // and this sits where a floating action button belongs.
+        "fixed bottom-6 left-4 z-40 sm:left-6",
         buttonClasses("primary", "md", "shadow-lg motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"),
         className,
       )}

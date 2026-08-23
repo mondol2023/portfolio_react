@@ -25,15 +25,20 @@ import { WALLPAPERS } from "./wallpapers";
  * from the drawer this replaces. Escape closes it, a pointer down anywhere
  * outside closes it, and focus goes back to the button either way — those three
  * are the parts a hand-rolled popover usually forgets.
+ *
+ * `onOpenChange` exists only so the taskbar can pin itself while the panel is
+ * up. The panel is anchored to the button, so a bar that slid away on the next
+ * scroll would take an open menu off the top of the screen with it.
  */
 
 interface StartMenuProps {
   name: string;
   activeSection: string | null;
   tone: SectionTone;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function StartMenu({ name, activeSection, tone }: StartMenuProps) {
+export function StartMenu({ name, activeSection, tone, onOpenChange }: StartMenuProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -48,6 +53,7 @@ export function StartMenu({ name, activeSection, tone }: StartMenuProps) {
       if (event.key !== "Escape") return;
       event.preventDefault();
       setOpen(false);
+      onOpenChange?.(false);
       triggerRef.current?.focus();
     }
 
@@ -56,6 +62,7 @@ export function StartMenu({ name, activeSection, tone }: StartMenuProps) {
     function onPointerDown(event: PointerEvent) {
       if (rootRef.current?.contains(event.target as Node)) return;
       setOpen(false);
+      onOpenChange?.(false);
     }
 
     document.addEventListener("keydown", onKeyDown);
@@ -72,10 +79,18 @@ export function StartMenu({ name, activeSection, tone }: StartMenuProps) {
       document.removeEventListener("pointerdown", onPointerDown);
       window.clearTimeout(timer);
     };
-  }, [open]);
+  }, [open, onOpenChange]);
+
+  // Every path in and out goes through here, so the parent cannot miss one:
+  // Escape, an outside pointer down, a click on the trigger and a navigation
+  // from inside the panel all close through `setMenu`.
+  function setMenu(next: boolean) {
+    setOpen(next);
+    onOpenChange?.(next);
+  }
 
   function close() {
-    setOpen(false);
+    setMenu(false);
     triggerRef.current?.focus();
   }
 
@@ -88,7 +103,7 @@ export function StartMenu({ name, activeSection, tone }: StartMenuProps) {
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => (open ? close() : setMenu(true))}
         className={cn(
           "inline-flex h-9 items-center gap-2 rounded-lg border px-2 sm:px-2.5",
           "text-sm font-semibold tracking-tight transition-colors duration-200",
@@ -113,15 +128,19 @@ export function StartMenu({ name, activeSection, tone }: StartMenuProps) {
             ref={panelRef}
             role="dialog"
             aria-label="Start menu"
-            initial={{ opacity: 0, y: reducedMotion ? 0 : 8, scale: reducedMotion ? 1 : 0.98 }}
+            initial={{ opacity: 0, y: reducedMotion ? 0 : -8, scale: reducedMotion ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: reducedMotion ? 0 : 8, scale: reducedMotion ? 1 : 0.98 }}
+            exit={{ opacity: 0, y: reducedMotion ? 0 : -8, scale: reducedMotion ? 1 : 0.98 }}
             transition={transition}
+            // Drops from under the bar rather than rising from above it — the
+            // bar is docked to the top now, and a panel growing off-screen
+            // upward was the one thing the move actually broke.
+            //
             // Anchored to the button on a wide screen; on a phone it spans the
             // viewport instead, because a 280px panel pinned to the left edge of
             // a 320px screen is just a narrower phone.
             className={cn(
-              "absolute bottom-full left-0 mb-2 origin-bottom-left",
+              "absolute top-full left-0 mt-2 origin-top-left",
               "w-[min(20rem,calc(100vw-1rem))] rounded-card border border-border",
               "bg-surface-raised/95 p-2 shadow-floating backdrop-blur-xl",
             )}
@@ -141,7 +160,7 @@ export function StartMenu({ name, activeSection, tone }: StartMenuProps) {
                     <DesktopIcon
                       item={item}
                       active={activeSection === item.id}
-                      onNavigate={() => setOpen(false)}
+                      onNavigate={() => setMenu(false)}
                       className="w-full"
                     />
                   </li>

@@ -1,8 +1,13 @@
-import { ArrowLeft, Pause } from "lucide-react";
-import Link from "next/link";
-import type { ReactNode } from "react";
+import { Pause } from "lucide-react";
 
-import { buttonClasses } from "@/components/ui/button";
+import {
+  ArcadeAction,
+  ArcadeActionLink,
+  ArcadeExit,
+  ArcadePanel,
+  ArcadeScope,
+  ArcadeScore,
+} from "@/components/play/arcade-chrome";
 import { GameState } from "@/lib/game/types";
 
 /**
@@ -10,6 +15,11 @@ import { GameState } from "@/lib/game/types";
  *
  * Pointer events are off by default so clicks fall through to the canvas for
  * steering, and re-enabled only on the interactive bits (buttons, back link).
+ *
+ * Everything visible here comes from `arcade-chrome`, so this screen and the
+ * Project Arcade it is launched from are the same cabinet. The button ids are
+ * load-bearing — `use-game` binds its handlers to them by id — so they are
+ * passed straight through and must not be renamed here.
  */
 
 interface GameOverlayProps {
@@ -19,71 +29,69 @@ interface GameOverlayProps {
 
 export function GameOverlay({ state, score }: GameOverlayProps) {
   return (
-    <div className="pointer-events-none absolute inset-0 flex flex-col text-white">
-      <Link
-        href="/play"
-        className="pointer-events-auto absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm backdrop-blur hover:bg-black/60"
-      >
-        <ArrowLeft aria-hidden="true" className="size-4" />
-        Back
-      </Link>
+    <ArcadeScope className="pointer-events-none absolute inset-0 flex flex-col">
+      <ArcadeExit href="/play" label="Cabinet select" className="absolute top-4 left-4" />
 
       {state === GameState.PLAYING ? (
-        <div className="pointer-events-none absolute top-4 right-4 flex items-center gap-2">
-          <p className="rounded-full bg-black/40 px-4 py-1.5 text-sm font-medium backdrop-blur">
-            Score: {score}
-          </p>
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <ArcadeScore score={score} />
           <button
             id="pause-btn"
             type="button"
             aria-label="Pause"
-            className="pointer-events-auto rounded-full bg-black/40 p-2.5 backdrop-blur hover:bg-black/60"
+            className="pointer-events-auto rounded-full border border-border bg-surface/80 p-2.5 text-fg-muted backdrop-blur-sm transition-colors hover:border-tone hover:text-tone focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tone"
           >
             <Pause aria-hidden="true" className="size-4" />
           </button>
         </div>
       ) : null}
 
-      {state === GameState.PAUSED ? (
+      {state === GameState.IDLE ? (
         <Centered>
-          <h1 className="text-3xl font-semibold">Paused</h1>
-          <p className="text-white/70">Score: {score}</p>
-          <button id="resume-btn" type="button" className={buttonClasses("primary", "lg")}>
-            Resume
-          </button>
+          <ArcadePanel
+            status="Cartridge loaded"
+            title="3D Snake"
+            actions={
+              <>
+                <ArcadeAction id="play-btn">Play</ArcadeAction>
+                <ArcadeActionLink href="/">Return to portfolio</ArcadeActionLink>
+              </>
+            }
+          >
+            Click anywhere on the field to steer. Eat the orange spheres, avoid your own tail, and
+            use the edges — they wrap around.
+          </ArcadePanel>
         </Centered>
       ) : null}
 
-      {state === GameState.IDLE ? (
+      {state === GameState.PAUSED ? (
         <Centered>
-          <h1 className="text-3xl font-semibold">3D Snake</h1>
-          <p className="max-w-sm text-white/70">
-            Click anywhere on the field to steer. Eat the orange spheres, avoid your own tail, and
-            use the edges — they wrap around.
-          </p>
-          <button id="play-btn" type="button" className={buttonClasses("primary", "lg")}>
-            Play
-          </button>
+          <ArcadePanel
+            status={`Score ${String(score).padStart(3, "0")}`}
+            title="Paused"
+            actions={<ArcadeAction id="resume-btn">Resume</ArcadeAction>}
+          />
         </Centered>
       ) : null}
 
       {state === GameState.GAME_OVER ? (
         <Centered>
-          <h1 className="text-3xl font-semibold">Game Over</h1>
-          <p className="text-white/70">Score: {score}</p>
-          <button id="restart-btn" type="button" className={buttonClasses("primary", "lg")}>
-            Restart
-          </button>
+          <ArcadePanel
+            status={`Score ${String(score).padStart(3, "0")}`}
+            title="Game over"
+            actions={
+              <>
+                <ArcadeAction id="restart-btn">Play again</ArcadeAction>
+                <ArcadeActionLink href="/">Return to portfolio</ArcadeActionLink>
+              </>
+            }
+          />
         </Centered>
       ) : null}
-    </div>
+    </ArcadeScope>
   );
 }
 
-function Centered({ children }: { children: ReactNode }) {
-  return (
-    <div className="pointer-events-auto flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-      {children}
-    </div>
-  );
+function Centered({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-1 items-center justify-center px-6">{children}</div>;
 }

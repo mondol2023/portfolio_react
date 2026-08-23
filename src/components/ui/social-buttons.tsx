@@ -1,6 +1,4 @@
-import { Globe } from "lucide-react";
-
-import { getSocialIconPath } from "@/lib/constants/social-brand";
+import { SocialIcon } from "@/components/ui/social-icon";
 import { cn } from "@/lib/utils/cn";
 import type { SocialLinkView } from "@/lib/utils/social";
 
@@ -18,20 +16,6 @@ import type { SocialLinkView } from "@/lib/utils/social";
  *
  * A server component; nothing here needs the browser.
  */
-
-function SocialIcon({ label, className }: { label: string; className?: string }) {
-  const path = getSocialIconPath(label);
-
-  // Lucide's globe is a stroked 24x24 icon and the brand marks are filled, so
-  // they are drawn differently on purpose rather than forced to match.
-  if (!path) return <Globe aria-hidden="true" className={className} />;
-
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
-      <path d={path} />
-    </svg>
-  );
-}
 
 export function SocialButtons({
   links,

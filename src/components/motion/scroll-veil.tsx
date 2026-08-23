@@ -7,13 +7,13 @@ import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
 
 /**
- * Scroll-linked fade for a whole section.
+ * Scroll-linked transition for a whole section.
  *
- * The section rises and fades in as it approaches the middle of the viewport,
- * holds while it is being read, then fades and drifts back out as it leaves —
- * and because the whole thing is driven by scroll position rather than by an
- * enter event, scrolling back up plays it in reverse. That symmetry is the
- * point: a section "hides" the same way it appeared.
+ * The section arrives as it approaches the middle of the viewport, holds while
+ * it is being read, then leaves as it passes — and because the whole thing is
+ * driven by scroll position rather than by an enter event, scrolling back up
+ * plays it in reverse. That symmetry is the point: a section "hides" the same
+ * way it appeared.
  *
  * Four offsets, so the plateau in the middle is explicit:
  *
@@ -24,6 +24,16 @@ import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
  *
  * Those four scroll positions are monotonically increasing for any element
  * height, so the interpolation never inverts on a short section.
+ *
+ * `variant` is what stops the page from being six identical fade-ups. Each
+ * section gets its own way of entering, chosen in `Section` from its tone, so
+ * the transition carries some of the section's character instead of being the
+ * same tax paid six times.
+ *
+ * Every variant moves along transform channels that cannot widen the element:
+ * `y`, `scale` and `rotateX`. Horizontal travel is deliberately absent — the
+ * document has no `overflow-x` clamp, so a section sliding in from the side
+ * would hand the whole page a horizontal scrollbar for the duration.
  */
 
 // Annotated rather than inferred: hoisting the array out of the `useScroll`
@@ -34,6 +44,30 @@ const OFFSET: UseScrollOptions["offset"] = ["start end", "start 55%", "end 45%",
 /** Progress breakpoints matching the four offsets above, spaced evenly. */
 const STOPS = [0, 1 / 3, 2 / 3, 1];
 
+export type VeilVariant = "fade" | "rise" | "expand" | "tilt" | "settle" | "zoom";
+
+/** `[entering, leaving]` for each channel; the two held stops are always rest. */
+interface VeilShape {
+  y: [number, number];
+  scale: [number, number];
+  rotateX: [number, number];
+}
+
+const SHAPES: Record<VeilVariant, VeilShape> = {
+  /** Opacity alone — for a section that already has an entrance of its own. */
+  fade: { y: [0, 0], scale: [1, 1], rotateX: [0, 0] },
+  /** The plain one: up from below, out through the top. */
+  rise: { y: [32, -32], scale: [1, 1], rotateX: [0, 0] },
+  /** Opens outward from slightly too small. */
+  expand: { y: [16, -16], scale: [0.94, 0.97], rotateX: [0, 0] },
+  /** Hinges up off its own bottom edge, then away over the top. */
+  tilt: { y: [28, -24], scale: [1, 1], rotateX: [7, -5] },
+  /** Comes down from above rather than up from below. */
+  settle: { y: [-36, -24], scale: [1, 1], rotateX: [0, 0] },
+  /** Arrives slightly too close and settles back. */
+  zoom: { y: [12, -12], scale: [1.04, 0.98], rotateX: [0, 0] },
+};
+
 interface ScrollVeilProps {
   children: ReactNode;
   className?: string;
@@ -43,15 +77,38 @@ interface ScrollVeilProps {
    * partial opacity with no way to scroll further and finish it.
    */
   exit?: boolean;
+  variant?: VeilVariant;
 }
 
-export function ScrollVeil({ children, className, exit = true }: ScrollVeilProps) {
+export function ScrollVeil({
+  children,
+  className,
+  exit = true,
+  variant = "rise",
+}: ScrollVeilProps) {
   const ref = useRef<HTMLDivElement>(null);
   const reducedMotion = useMotionPreference();
   const { scrollYProgress } = useScroll({ target: ref, offset: OFFSET });
 
-  const opacity = useTransform(scrollYProgress, STOPS, [0, 1, 1, exit ? 0 : 1]);
-  const y = useTransform(scrollYProgress, STOPS, [32, 0, 0, exit ? -32 : 0]);
+  const shape = SHAPES[variant];
+  // `exit === false` collapses every leaving value back to rest, so the curve
+  // simply plateaus instead of running a half-transition it can never finish.
+  const rest = <T,>(value: T, fallback: T) => (exit ? value : fallback);
+
+  const opacity = useTransform(scrollYProgress, STOPS, [0, 1, 1, rest(0, 1)]);
+  const y = useTransform(scrollYProgress, STOPS, [shape.y[0], 0, 0, rest(shape.y[1], 0)]);
+  const scale = useTransform(scrollYProgress, STOPS, [
+    shape.scale[0],
+    1,
+    1,
+    rest(shape.scale[1], 1),
+  ]);
+  const rotateX = useTransform(scrollYProgress, STOPS, [
+    shape.rotateX[0],
+    0,
+    0,
+    rest(shape.rotateX[1], 0),
+  ]);
 
   /*
    * The server render has no scroll position, so binding these motion values
@@ -63,7 +120,23 @@ export function ScrollVeil({ children, className, exit = true }: ScrollVeilProps
   const animated = useHydrated() && !reducedMotion;
 
   return (
-    <motion.div ref={ref} className={className} style={animated ? { opacity, y } : undefined}>
+    <motion.div
+      ref={ref}
+      className={className}
+      style={
+        animated
+          ? {
+              opacity,
+              y,
+              scale,
+              rotateX,
+              // Only meaningful for `tilt`, and inert at 0deg for the rest, so
+              // it is set unconditionally rather than branched per variant.
+              transformPerspective: 1400,
+            }
+          : undefined
+      }
+    >
       {children}
     </motion.div>
   );

@@ -60,7 +60,7 @@ export default async function HomePage() {
       <Hero settings={settings} />
       <About about={about} settings={settings} level={level} />
       <Skills skills={skills} />
-      <Projects projects={featuredProjects} totalCount={allProjects.length} />
+      <Projects projects={featuredProjects} totalCount={allProjects.length} techIcons={techIcons} />
       <Experience experiences={experiences} techIcons={techIcons} />
       <Contact settings={settings} />
     </DesktopPanes>

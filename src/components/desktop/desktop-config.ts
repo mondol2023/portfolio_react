@@ -24,7 +24,14 @@ import { DEFAULT_TONE, type SectionTone } from "@/lib/constants/section-tone";
  * single place the two vocabularies meet.
  */
 
-/** Taskbar height. Duplicated as a class and a number because layout needs both. */
+/**
+ * Taskbar height. Duplicated as a class and a number because layout needs both.
+ *
+ * The bar is docked to the *top* and hides on scroll-down (`taskbar.tsx`), so
+ * this is what panes reserve as `pt-14` and what anchor jumps use as
+ * `scroll-padding-top` — not a bottom offset, as it was when the bar lived at
+ * the foot of the screen.
+ */
 export const TASKBAR_HEIGHT_PX = 56;
 export const TASKBAR_HEIGHT_CLASS = "h-14";
 

@@ -18,10 +18,17 @@ interface ScrambleTextProps {
   delay?: number;
   /** Reserves the final width so surrounding layout does not shift as it lands. */
   fixedWidth?: boolean;
+  /**
+   * Runs the scramble when true; the text sits resolved when false. Defaults
+   * to true, which resolves once on mount — pass a scroll-driven value for
+   * anything below the fold, or the effect plays out off screen and the
+   * reader only ever meets the settled text.
+   */
+  active?: boolean;
 }
 
-export function ScrambleText({ text, className, delay = 0, fixedWidth = true }: ScrambleTextProps) {
-  const display = useScramble(text, { delay });
+export function ScrambleText({ text, className, delay = 0, fixedWidth = true, active = true }: ScrambleTextProps) {
+  const display = useScramble(text, { delay, active });
 
   return (
     <span className={className}>

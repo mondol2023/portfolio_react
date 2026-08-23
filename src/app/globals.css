@@ -173,6 +173,35 @@
   --tone-soft: rgba(96, 165, 250, 0.16);
 }
 
+
+/*
+ * Skill-category palette
+ * ----------------------
+ * The skill galaxy gives every category its own hue: one per orbit, reused by
+ * the planets on that orbit and by the chips underneath the canvas, so the
+ * colour is the thing that ties a button to the world it focuses.
+ *
+ * Scoped to `[data-tone="stack"]` rather than `:root` because they are that
+ * section's vocabulary and nothing else's — and because the galaxy scene
+ * resolves them with `useCssColors` against exactly that selector. Same
+ * light-700 / dark-400 split as the tones above, for the same contrast reason.
+ */
+[data-tone="stack"] {
+  --skill-languages: #b45309;
+  --skill-frontend: #0e7490;
+  --skill-backend: #6d28d9;
+  --skill-database: #047857;
+  --skill-tools: #be123c;
+}
+
+.dark [data-tone="stack"] {
+  --skill-languages: #fbbf24;
+  --skill-frontend: #22d3ee;
+  --skill-backend: #a78bfa;
+  --skill-database: #34d399;
+  --skill-tools: #fb7185;
+}
+
 @theme inline {
   --color-tone: var(--tone);
   --color-tone-soft: var(--tone-soft);
@@ -222,10 +251,50 @@
   }
 
   html {
-    scroll-behavior: smooth;
     /* Offset anchor jumps so section headings clear the fixed navbar. */
     scroll-padding-top: 6rem;
     -webkit-text-size-adjust: 100%;
+  }
+
+  /* Native smooth scrolling is the *fallback*, not the effect. While Lenis is
+     driving (it puts `.lenis` on <html>) the browser must not also animate
+     scroll position: Lenis writes `scrollTop` every frame and a native tween
+     re-targets those writes, which reads as stutter on a wheel and as a fight
+     on an anchor jump. Outside Lenis — reduced motion, /admin, /play — the
+     browser keeps doing it. */
+  html:not(.lenis) {
+    scroll-behavior: smooth;
+  }
+
+  /* Lenis's own base rules. Shipped as `lenis/dist/lenis.css`, inlined here
+     because this file is the single stylesheet and a bare `@import` of a
+     package CSS file would have to sit above every `@layer`. Keep in sync if
+     the package version changes. */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  .lenis:not(.lenis-autoToggle).lenis-stopped {
+    overflow: clip;
+  }
+
+  .lenis [data-lenis-prevent],
+  .lenis [data-lenis-prevent-wheel],
+  .lenis [data-lenis-prevent-touch],
+  .lenis [data-lenis-prevent-vertical],
+  .lenis [data-lenis-prevent-horizontal] {
+    overscroll-behavior: contain;
+  }
+
+  .lenis.lenis-smooth iframe {
+    pointer-events: none;
+  }
+
+  .lenis.lenis-autoToggle {
+    transition-property: overflow;
+    transition-duration: 1ms;
+    transition-behavior: allow-discrete;
   }
 
   body {
@@ -241,19 +310,10 @@
     color: var(--accent-fg);
   }
 
-  /* The custom cursor sets this flag on <html> while it is mounted, and only
-     then does the system pointer go away. If it never hydrates, or unmounts on
-     a coarse-pointer device, the visitor keeps a normal cursor. Text fields are
-     deliberately left alone: an I-beam tells you where the caret will land, and
-     no drawn ring communicates that as well. */
-  html[data-custom-cursor="on"],
-  html[data-custom-cursor="on"] * {
-    cursor: none;
-  }
-
-  html[data-custom-cursor="on"] :is(input, textarea, [contenteditable="true"]) {
-    cursor: text;
-  }
+  /* The pointer is the platform's own. `custom-cursor.tsx` is still on disk but
+     no longer mounted (see `(site)/layout.tsx`), so nothing hides the system
+     arrow and every element keeps the cursor its role implies — an I-beam over
+     text, a hand over links, a wait cursor when the OS says so. */
 
 
   :focus-visible {
@@ -281,7 +341,10 @@
    * it genuinely stops moving.
    */
   @media (prefers-reduced-motion: reduce) {
-    html {
+    /* Matches `html:not(.lenis)` above on specificity as well as beating it on
+       order — a bare `html` selector would lose to it and leave native smooth
+       scrolling on for exactly the visitor who asked for none. */
+    html:not(.lenis) {
       scroll-behavior: auto;
     }
 
@@ -324,6 +387,41 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--fg-subtle);
+  }
+
+  /*
+   * Skill chip
+   * ----------
+   * The keyboard route into the galaxy. Every chip inherits its category's hue
+   * through `--chip`, set inline by the component — the states below are CSS
+   * because a hover and a pressed state expressed as inline styles would need
+   * React to track hover, and hover is not state worth re-rendering a list for.
+   */
+  .skill-chip {
+    border-color: color-mix(in srgb, var(--chip) 30%, transparent);
+    color: var(--fg-muted);
+    transition:
+      color 160ms ease,
+      border-color 160ms ease,
+      background-color 160ms ease;
+  }
+
+  .skill-chip:hover {
+    border-color: color-mix(in srgb, var(--chip) 70%, transparent);
+    background-color: color-mix(in srgb, var(--chip) 8%, transparent);
+    color: var(--fg);
+  }
+
+  .skill-chip[aria-pressed="true"] {
+    border-color: var(--chip);
+    background-color: color-mix(in srgb, var(--chip) 15%, transparent);
+    color: var(--chip);
+  }
+
+  /* The dot is the only part that carries the hue at rest, so the row reads as
+     a legend for the orbits even before anything is chosen. */
+  .skill-chip-dot {
+    background-color: var(--chip);
   }
 
   /* Faint blueprint grid used behind the hero and section dividers. */

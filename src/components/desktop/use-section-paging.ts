@@ -30,12 +30,11 @@ export function useSectionPaging() {
       scrollPaddingBottom: root.style.scrollPaddingBottom,
     };
 
-    // `globals.css` reserves 6rem at the top for a header that this shell does
-    // not have. The obstruction is now at the bottom, so the reservation moves
-    // with it — otherwise every anchor jump lands 96px too low and the last
-    // line of a section hides behind the taskbar.
-    root.style.scrollPaddingTop = "0px";
-    root.style.scrollPaddingBottom = `${TASKBAR_HEIGHT_PX}px`;
+    // `globals.css` reserves 6rem at the top for a header that is 56px tall,
+    // so the reservation is trimmed to the bar's actual height rather than
+    // removed: an anchor jump has to clear the taskbar, and only the taskbar.
+    root.style.scrollPaddingTop = `${TASKBAR_HEIGHT_PX}px`;
+    root.style.scrollPaddingBottom = "0px";
 
     return () => {
       root.style.scrollPaddingTop = previous.scrollPaddingTop;
