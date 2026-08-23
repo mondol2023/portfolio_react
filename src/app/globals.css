@@ -56,7 +56,7 @@
   --boot-bg: #07080b;
   --boot-fg: #e6f4f4;
   --boot-dim: #55666f;
-  --boot-signal: #22d3ee;
+  --boot-signal: #1794a8;
 }
 
 .dark {
@@ -131,8 +131,8 @@
   --tone-soft: rgba(109, 40, 217, 0.13);
 }
 [data-tone="stack"] {
-  --tone: #0e7490;
-  --tone-soft: rgba(14, 116, 144, 0.14);
+  --tone: #2151d5;
+  --tone-soft: rgba(33, 81, 213, 0.14);
 }
 [data-tone="work"] {
   --tone: #be123c;
@@ -143,8 +143,9 @@
   --tone-soft: rgba(4, 120, 87, 0.14);
 }
 [data-tone="contact"] {
-  --tone: #1d4ed8;
+  --tone: #0c2f90;
   --tone-soft: rgba(29, 78, 216, 0.13);
+  
 }
 
 /* Dark tones at the 400 level — same hues, lifted for contrast on --bg. */
@@ -157,8 +158,8 @@
   --tone-soft: rgba(167, 139, 250, 0.16);
 }
 .dark [data-tone="stack"] {
-  --tone: #22d3ee;
-  --tone-soft: rgba(34, 211, 238, 0.14);
+  --tone: #688df3;
+  --tone-soft: rgba(104, 141, 243, 0.16);
 }
 .dark [data-tone="work"] {
   --tone: #fb7185;
@@ -169,7 +170,7 @@
   --tone-soft: rgba(52, 211, 153, 0.14);
 }
 .dark [data-tone="contact"] {
-  --tone: #60a5fa;
+  --tone: #3585e7;
   --tone-soft: rgba(96, 165, 250, 0.16);
 }
 
