@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { SkillCard } from "@/components/skills/skill-card";
 import { TechMarquee } from "@/components/skills/tech-marquee";
+import { gameStore } from "@/lib/store/game-store";
 import {
   PROFICIENCY_LABELS,
   SKILL_CATEGORY_LABELS,
@@ -40,14 +42,104 @@ function toRows(skills: readonly Skill[]): Skill[][] {
   return rows.filter((row) => row.length > 0);
 }
 
-export function TechChain({ skills }: { skills: Skill[] }) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const rows = toRows(skills);
-  const active = skills.find((skill) => skill.id === activeId) ?? null;
+interface CardPosition {
+  top: number;
+  left: number;
+  placement: "top" | "bottom";
+  /** Pointer offset from the card's own left edge, so it still points at the pill once the card's position is clamped to the viewport. */
+  arrowOffset: number;
+}
 
-  // A second click on the same pill puts it back — the zoom is a toggle, not a
+/** Gap between a pill and the card, and the margin the card keeps from the viewport edge. */
+const CARD_GAP = 10;
+const VIEWPORT_MARGIN = 12;
+
+function positionCard(anchor: HTMLElement, card: HTMLElement): CardPosition {
+  const anchorRect = anchor.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+
+  const placement: "top" | "bottom" =
+    anchorRect.top >= cardRect.height + CARD_GAP + VIEWPORT_MARGIN ? "top" : "bottom";
+
+  const top =
+    placement === "top"
+      ? anchorRect.top - cardRect.height - CARD_GAP
+      : anchorRect.bottom + CARD_GAP;
+
+  const idealLeft = anchorRect.left + anchorRect.width / 2 - cardRect.width / 2;
+  const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - cardRect.width - VIEWPORT_MARGIN);
+  const left = Math.min(Math.max(idealLeft, VIEWPORT_MARGIN), maxLeft);
+
+  const arrowOffset = anchorRect.left + anchorRect.width / 2 - left;
+
+  return { top, left, placement, arrowOffset };
+}
+
+export function TechChain({ skills }: { skills: Skill[] }) {
+  const [selection, setSelection] = useState<{ id: string; anchor: HTMLButtonElement } | null>(
+    null,
+  );
+  const [position, setPosition] = useState<CardPosition | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const rows = toRows(skills);
+  const active = selection ? (skills.find((skill) => skill.id === selection.id) ?? null) : null;
+
+  // A second click on the same pill puts it back — the card is a toggle, not a
   // trap, and there is nowhere else to click that would obviously dismiss it.
-  const select = (id: string) => setActiveId((current) => (current === id ? null : id));
+  // Only a genuine open counts as "discovering" the skill, not the close, and
+  // the store write happens outside the updater since state setters must stay
+  // pure.
+  const select = (id: string, element: HTMLButtonElement) => {
+    if (selection?.id !== id) gameStore.viewSkill(id);
+    setSelection((current) => (current?.id === id ? null : { id, anchor: element }));
+  };
+  const close = () => setSelection(null);
+
+  // Recomputed on every selection and whenever the layout could have moved the
+  // pill under it — scrolling changes fixed-position coordinates directly, and
+  // resizing can reflow the chain into different rows.
+  useLayoutEffect(() => {
+    if (!selection || !cardRef.current) {
+      setPosition(null);
+      return;
+    }
+
+    const reposition = () => {
+      if (cardRef.current) setPosition(positionCard(selection.anchor, cardRef.current));
+    };
+
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [selection]);
+
+  // Dismiss on Escape or a click outside the card — the pill itself is left
+  // alone here since its own onClick already handles the toggle.
+  useEffect(() => {
+    if (!selection) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (cardRef.current?.contains(target)) return;
+      if (selection.anchor.contains(target)) return;
+      close();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selection]);
 
   return (
     <div>
@@ -58,11 +150,28 @@ export function TechChain({ skills }: { skills: Skill[] }) {
             skills={row}
             direction={index % 2 === 0 ? "forward" : "reverse"}
             label={`Technologies, line ${index + 1} of ${rows.length}`}
-            activeId={activeId}
+            activeId={selection?.id ?? null}
             onSelect={select}
           />
         ))}
       </div>
+
+      {active ? (
+        <SkillCard
+          ref={cardRef}
+          skill={active}
+          placement={position?.placement ?? "top"}
+          arrowOffset={position?.arrowOffset ?? 0}
+          onClose={close}
+          style={
+            position
+              ? { top: position.top, left: position.left }
+              : // First paint, before layout effect has measured the card: kept off
+                // screen so nothing flashes at the wrong spot.
+                { top: -9999, left: -9999 }
+          }
+        />
+      ) : null}
 
       {/*
        * The caption is the only part that moves when a pill is selected, and it
@@ -95,7 +204,7 @@ export function TechChain({ skills }: { skills: Skill[] }) {
           </>
         ) : (
           <span className="text-fg-subtle">
-            Select a technology to see where it sits in the stack.
+            Select a technology to discover where it sits in the stack.
           </span>
         )}
       </p>

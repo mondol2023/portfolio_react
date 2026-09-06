@@ -2,12 +2,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { isAllowedImageSrc } from "@/lib/constants/images";
 import { getMonogram } from "@/lib/constants/tech-brand";
 import type { Project } from "@/lib/types/content";
 import { cn } from "@/lib/utils/cn";
 import { formatYearRange } from "@/lib/utils/dates";
+import {
+  MISSION_SCOPE_LABELS,
+  PROJECT_STATUS_LABELS,
+  missionScope,
+  projectStatus,
+  type ProjectStatus,
+} from "@/lib/utils/project-status";
 
 /**
  * Project card.
@@ -18,6 +25,12 @@ import { formatYearRange } from "@/lib/utils/dates";
  */
 
 const MAX_TAGS = 4;
+
+const STATUS_VARIANT: Record<ProjectStatus, BadgeVariant> = {
+  live: "success",
+  "in-progress": "warning",
+  shipped: "neutral",
+};
 
 interface ProjectCardProps {
   project: Project;
@@ -37,6 +50,8 @@ export function ProjectCard({
   const year = formatYearRange(project.startDate, project.endDate);
   const visibleTags = project.technologies.slice(0, MAX_TAGS);
   const hiddenTags = project.technologies.length - visibleTags.length;
+  const status = projectStatus(project);
+  const scope = missionScope(project);
 
   return (
     <article
@@ -82,6 +97,17 @@ export function ProjectCard({
               <span>{year}</span>
             </>
           ) : null}
+        </p>
+
+        {/*
+         * "Mission" framing kept to two small badges, not a renamed heading or
+         * a rewritten description — a recruiter skimming this card should still
+         * read "live project, uses a lot of tech," just with game-flavored
+         * labels rather than plain ones.
+         */}
+        <p className="mt-3 flex flex-wrap items-center gap-2">
+          <Badge variant={STATUS_VARIANT[status]}>{PROJECT_STATUS_LABELS[status]}</Badge>
+          <Badge variant="outline">{MISSION_SCOPE_LABELS[scope]}</Badge>
         </p>
 
         <h3

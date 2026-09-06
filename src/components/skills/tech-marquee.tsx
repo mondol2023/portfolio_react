@@ -50,7 +50,7 @@ interface TechMarqueeProps {
   label: string;
   /** Id of the pill currently zoomed, if it is in this row. */
   activeId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, element: HTMLButtonElement) => void;
 }
 
 export function TechMarquee({
@@ -95,7 +95,7 @@ export function TechMarquee({
               >
                 <button
                   type="button"
-                  onClick={() => onSelect(skill.id)}
+                  onClick={(event) => onSelect(skill.id, event.currentTarget)}
                   aria-pressed={active}
                   tabIndex={duplicate ? -1 : undefined}
                   className={cn(

@@ -48,7 +48,7 @@ export default async function HomePage() {
   return (
     <>
       <Hero settings={settings} />
-      <About about={about} />
+      <About about={about} experiences={experiences} />
       <Skills skills={skills} />
       <Projects projects={featuredProjects} totalCount={allProjects.length} />
       <Experience experiences={experiences} techIcons={techIcons} />

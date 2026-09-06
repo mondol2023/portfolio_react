@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { GameModeToggle } from "@/components/game/game-mode-toggle";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { DURATION, EASE_OUT } from "@/components/motion/variants";
 import { NAV_ITEMS } from "@/lib/constants/navigation";
@@ -185,6 +186,11 @@ export function MobileMenu({ activeSection, className }: MobileMenuProps) {
               <div className="mt-2 flex items-center justify-between border-t border-border px-3 pt-3 pb-1">
                 <span className="label-mono">Theme</span>
                 <ThemeToggle />
+              </div>
+
+              <div className="flex items-center justify-between px-3 pt-3 pb-1">
+                <span className="label-mono">Mode</span>
+                <GameModeToggle />
               </div>
             </motion.div>
           </>

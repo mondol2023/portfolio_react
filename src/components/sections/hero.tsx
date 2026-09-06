@@ -1,5 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, Mail } from "lucide-react";
 
+import { HeroCore } from "@/components/game/hero-core";
+import { StartAdventureLink } from "@/components/game/start-adventure-link";
 import { AnimatedText } from "@/components/motion/animated-text";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { buttonClasses } from "@/components/ui/button";
@@ -45,11 +47,19 @@ export function Hero({ settings }: { settings: SiteSettings }) {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div className="surface-grid absolute inset-0 [mask-image:radial-gradient(75%_60%_at_50%_0%,black,transparent)]" />
         <div className="glow-accent absolute inset-x-0 top-0 h-[32rem]" />
+        {/* Game Mode only — renders nothing at all in Normal Mode, see HeroCore. */}
+        <HeroCore />
       </div>
 
       <div className="container-page">
         <Stagger triggerOnMount delayChildren={0.08} step={0.09} className="max-w-4xl">
           <StaggerItem>
+            <p aria-hidden="true" className="label-mono text-fg-subtle">
+              Status: Online
+            </p>
+          </StaggerItem>
+
+          <StaggerItem className="mt-3">
             <p className="inline-flex items-center gap-2.5 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-medium text-fg-muted backdrop-blur-sm">
               <span className="relative flex size-2">
                 {isAvailable ? (
@@ -101,10 +111,10 @@ export function Hero({ settings }: { settings: SiteSettings }) {
              * <html>. It also costs no JavaScript and no prefetch of a route we
              * are already on.
              */}
-            <a href="#projects" className={buttonClasses("primary", "lg")}>
+            <StartAdventureLink href="#projects" className={buttonClasses("primary", "lg")}>
               View selected work
               <ArrowDownRight className="size-4" aria-hidden="true" />
-            </a>
+            </StartAdventureLink>
             <a href="#contact" className={buttonClasses("secondary", "lg")}>
               <Mail className="size-4" aria-hidden="true" />
               Get in touch

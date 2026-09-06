@@ -77,13 +77,25 @@ export function Experience({ experiences, techIcons }: ExperienceProps) {
 
               return (
                 <li key={entry.id} className="relative">
-                  {/* Node on the rail. Centred on the 1px line to either side. */}
+                  {/*
+                   * Node on the rail, centred on the 1px line to either side. The
+                   * current role gets the same "you are here" ping the Hero's
+                   * availability dot uses — one motif for "this is live right
+                   * now," not a second one invented for the timeline.
+                   */}
                   <span
                     aria-hidden="true"
-                    className={`absolute top-2 -left-6 size-2.5 -translate-x-1/2 rounded-full ring-4 ring-bg-subtle sm:-left-10 ${
-                      entry.isCurrent ? "bg-tone" : "bg-border-strong"
-                    }`}
-                  />
+                    className="absolute top-2 -left-6 flex size-2.5 -translate-x-1/2 sm:-left-10"
+                  >
+                    {entry.isCurrent ? (
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-tone opacity-60" />
+                    ) : null}
+                    <span
+                      className={`relative inline-flex size-2.5 rounded-full ring-4 ring-bg-subtle ${
+                        entry.isCurrent ? "bg-tone" : "bg-border-strong"
+                      }`}
+                    />
+                  </span>
 
                   <div className="lg:grid lg:grid-cols-[14rem_1fr] lg:gap-12">
                     <Reveal className="lg:pt-1">

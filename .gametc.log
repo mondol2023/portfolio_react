@@ -1,0 +1,23 @@
+
+> portfolio@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+src/components/admin/analytics/visitor-search.tsx(7,60): error TS2307: Cannot find module '@/lib/analytics/search' or its corresponding type declarations.
+src/components/admin/analytics/visitor-search.tsx(53,11): error TS2322: Type '{ ref: RefObject<HTMLInputElement | null>; type: "search"; name: string; defaultValue: string; placeholder: string; "aria-label": string; className: string; }' is not assignable to type 'IntrinsicAttributes & InputHTMLAttributes<HTMLInputElement>'.
+  Property 'ref' does not exist on type 'IntrinsicAttributes & InputHTMLAttributes<HTMLInputElement>'.
+src/components/admin/analytics/visitor-search.tsx(69,35): error TS7006: Parameter 'option' implicitly has an 'any' type.
+src/components/admin/analytics/visitor-table.tsx(8,29): error TS2307: Cannot find module '@/lib/analytics/geo' or its corresponding type declarations.
+src/components/admin/analytics/visitor-table.tsx(9,33): error TS2307: Cannot find module '@/lib/analytics/period' or its corresponding type declarations.
+src/components/admin/analytics/visitors-panel.tsx(5,53): error TS2307: Cannot find module '@/lib/analytics/search' or its corresponding type declarations.
+src/components/admin/analytics/visitors-panel.tsx(11,8): error TS2307: Cannot find module '@/lib/firebase/repositories/analytics-repository' or its corresponding type declarations.
+src/components/admin/analytics/visitors-panel.tsx(42,18): error TS2339: Property 'visitorId' does not exist on type 'ContactMessage'.
+src/components/admin/analytics/visitors-panel.tsx(43,42): error TS2339: Property 'visitorId' does not exist on type 'ContactMessage'.
+src/components/admin/analytics/visitors-panel.tsx(45,30): error TS2339: Property 'visitorId' does not exist on type 'ContactMessage'.
+src/components/admin/analytics/visitors-panel.tsx(58,40): error TS7006: Parameter 'visit' implicitly has an 'any' type.
+src/components/admin/analytics/visits-trend-chart.tsx(1,47): error TS2307: Cannot find module '@/lib/analytics/period' or its corresponding type declarations.
+src/components/admin/animation-toggles.tsx(8,43): error TS2307: Cannot find module '@/lib/actions/animation-actions' or its corresponding type declarations.
+src/components/admin/ripple-toggle.tsx(8,40): error TS2307: Cannot find module '@/lib/actions/ripple-actions' or its corresponding type declarations.
+src/components/admin/settings-form.tsx(110,25): error TS2339: Property 'phone' does not exist on type 'FieldErrors<{ name: string; title: string; tagline: string; description: string; email: string; otherSocials: { label: string; url: string; }[]; availabilityStatus: "available" | "open" | "unavailable"; ... 5 more ...; resumeUrl?: string | undefined; }>'.
+src/components/admin/settings-form.tsx(116,28): error TS2345: Argument of type '"phone"' is not assignable to parameter of type '"name" | "title" | "description" | "email" | "github" | "linkedin" | "twitter" | "resumeUrl" | "tagline" | "location" | "otherSocials" | "availabilityStatus" | "availabilityLabel" | `otherSocials.${number}` | `otherSocials.${number}.label` | `otherSocials.${number}.url`'.

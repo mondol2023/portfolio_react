@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { CheckCircle2, Info, X, XCircle } from "lucide-react";
+import { CheckCircle2, Info, Trophy, X, XCircle } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils/cn";
  * user might have missed is worse than one that lingers.
  */
 
-export type ToastVariant = "success" | "error" | "info";
+export type ToastVariant = "success" | "error" | "info" | "achievement";
 
 interface Toast {
   id: string;
@@ -44,12 +44,17 @@ const ICONS = {
   success: CheckCircle2,
   error: XCircle,
   info: Info,
+  achievement: Trophy,
 } as const;
 
 const ACCENTS: Record<ToastVariant, string> = {
   success: "text-success",
   error: "text-danger",
   info: "text-accent",
+  // Gold rather than the site accent: an achievement is a different kind of
+  // event from "your save worked", and borrowing `--warning` keeps it that
+  // way without inventing a new token just for this.
+  achievement: "text-warning",
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {

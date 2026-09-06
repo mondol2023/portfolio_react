@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Code2, ExternalLink } from "lucide-react";
 
+import { ProjectViewTracker } from "@/components/game/project-view-tracker";
 import { Reveal } from "@/components/motion/reveal";
 import { CaseStudyBlock } from "@/components/projects/case-study-block";
 import { ProjectCard } from "@/components/projects/project-card";
@@ -195,6 +196,8 @@ export default async function ProjectDetailPage({ params }: PageProps<"/projects
 
   return (
     <>
+      <ProjectViewTracker projectId={project.id} />
+
       <JsonLd
         data={{
           "@context": "https://schema.org",

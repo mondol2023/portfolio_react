@@ -1,6 +1,7 @@
 import { Layers } from "lucide-react";
 
 import { Reveal } from "@/components/motion/reveal";
+import { SkillGalaxy } from "@/components/skills/skill-galaxy";
 import { TechChain } from "@/components/skills/tech-chain";
 import { DemoBadge } from "@/components/ui/demo-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -51,6 +52,9 @@ export function Skills({ skills }: { skills: Skill[] }) {
           <TechChain skills={skills} />
         )}
       </Reveal>
+
+      {/* Game Mode only, opt-in — renders nothing in Normal Mode. See SkillGalaxy. */}
+      <SkillGalaxy skills={skills} />
     </Section>
   );
 }

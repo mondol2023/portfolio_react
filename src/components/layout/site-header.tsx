@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import Link from "next/link";
 
+import { GameModeToggle } from "@/components/game/game-mode-toggle";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { DURATION, EASE_OUT } from "@/components/motion/variants";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -98,6 +99,7 @@ export function SiteHeader({ name }: SiteHeaderProps) {
             </nav>
 
             {/* Separated from the links: a control, not a destination. */}
+            <GameModeToggle className="ml-1 hidden md:inline-flex" />
             <ThemeToggle className="ml-1 hidden md:inline-flex" />
             <MobileMenu activeSection={activeSection} className="md:hidden" />
           </div>

@@ -1,3 +1,6 @@
+import { GameHUD } from "@/components/game/game-hud";
+import { GameProgressTracker } from "@/components/game/game-progress-tracker";
+import { WorldLayer } from "@/components/game/world-layer";
 import { AmbientBackground } from "@/components/layout/ambient-background";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -42,6 +45,12 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       </main>
 
       <SiteFooter settings={settings} />
+
+      {/* Renders nothing in Normal Mode; see the components themselves. */}
+      <GameProgressTracker />
+      {/* The floating world behind the content — Game Mode only, never blocking. */}
+      <WorldLayer />
+      <GameHUD />
     </>
   );
 }

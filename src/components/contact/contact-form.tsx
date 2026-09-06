@@ -1,10 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Send } from "lucide-react";
+import { CheckCircle2, Send, Trophy } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
@@ -66,7 +67,11 @@ export function ContactForm() {
 
   if (status === "sent") {
     return (
-      <div
+      // `Reveal` rather than a bare `div`: the form is already on screen when
+      // this swaps in, so its scroll-triggered entrance fires immediately —
+      // the "Quest complete" beat, built from the same fade the rest of the
+      // site already uses rather than a one-off animation.
+      <Reveal
         // Focusable container so the confirmation is reachable, and a live
         // region so it is announced when it replaces the form.
         role="status"
@@ -74,6 +79,15 @@ export function ContactForm() {
       >
         <CheckCircle2 className="size-6 text-success" aria-hidden="true" />
         <div>
+          {/* Decorative flourish only — "Message sent" below already carries
+              the real information for assistive tech. */}
+          <p
+            aria-hidden="true"
+            className="label-mono mb-1.5 inline-flex items-center gap-1.5 text-warning"
+          >
+            <Trophy className="size-3.5" aria-hidden="true" />
+            Quest complete
+          </p>
           <p className="font-medium text-fg">Message sent</p>
           <p className="mt-1 text-sm leading-relaxed text-fg-muted">
             Thanks for reaching out. I read everything that comes through here and reply to
@@ -83,7 +97,7 @@ export function ContactForm() {
         <Button variant="secondary" size="sm" onClick={() => setStatus("idle")}>
           Send another message
         </Button>
-      </div>
+      </Reveal>
     );
   }
 
