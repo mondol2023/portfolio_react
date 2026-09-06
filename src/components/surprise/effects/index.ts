@@ -15,6 +15,7 @@ import { lavaLamp } from "./lava-lamp";
 import { monoTint } from "./mono-tint";
 import { neonInk } from "./neon-ink";
 import { outlineInk } from "./outline-ink";
+import { riverPath } from "./river-path";
 import { scanlines } from "./scanlines";
 import { scenery } from "./scenery";
 import { sharpChrome } from "./sharp-chrome";
@@ -72,6 +73,7 @@ export const SURPRISE_EFFECTS: readonly SurpriseEffect[] = [
   starfield,
   gridWarp,
   lavaLamp,
+  riverPath,
 
   // weather — in front of the content
   confettiRain,
@@ -114,6 +116,7 @@ export {
   monoTint,
   neonInk,
   outlineInk,
+  riverPath,
   scanlines,
   scenery,
   sharpChrome,
