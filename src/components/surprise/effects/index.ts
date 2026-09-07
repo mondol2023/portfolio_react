@@ -1,6 +1,7 @@
 import type { SurpriseEffect } from "../effect";
 
 import { bubbles } from "./bubbles";
+import { cardTilt } from "./card-tilt";
 import { colorWash } from "./color-wash";
 import { confettiRain } from "./confetti-rain";
 import { cursorTrail } from "./cursor-trail";
@@ -12,6 +13,7 @@ import { gradientInk } from "./gradient-ink";
 import { gridWarp } from "./grid-warp";
 import { inkAndPaper } from "./ink-and-paper";
 import { lavaLamp } from "./lava-lamp";
+import { magneticCursor } from "./magnetic-cursor";
 import { monoTint } from "./mono-tint";
 import { neonInk } from "./neon-ink";
 import { outlineInk } from "./outline-ink";
@@ -94,14 +96,17 @@ export const SURPRISE_EFFECTS: readonly SurpriseEffect[] = [
 
   // flow — movement applied to elements the page already has
   floatHeadings,
+  cardTilt,
 
   // cursor — follows the pointer
   spotlight,
   cursorTrail,
+  magneticCursor,
 ];
 
 export {
   bubbles,
+  cardTilt,
   colorWash,
   confettiRain,
   cursorTrail,
@@ -113,6 +118,7 @@ export {
   gridWarp,
   inkAndPaper,
   lavaLamp,
+  magneticCursor,
   monoTint,
   neonInk,
   outlineInk,
