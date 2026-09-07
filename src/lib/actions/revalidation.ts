@@ -59,6 +59,15 @@ export function revalidateAnimations(): void {
 }
 
 /**
+ * The backdrop scene is mounted by the public shell, so it reaches every site
+ * route — and like the animations it changes no content, so the OG image and
+ * the sitemap are left alone.
+ */
+export function revalidateScenery(): void {
+  revalidateAnimations();
+}
+
+/**
  * Settings feed the header, footer, metadata and the generated OG image, so
  * every public route is affected.
  */

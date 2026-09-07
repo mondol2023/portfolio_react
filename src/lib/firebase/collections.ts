@@ -25,4 +25,6 @@ export const CONTENT_DOCS = {
   siteSettings: "siteSettings",
   /** Which surprise animations are pinned on for every visitor. */
   animations: "animations",
+  /** Which backdrop scene the site is wearing. See `scenery-repository`. */
+  scenery: "scenery",
 } as const;

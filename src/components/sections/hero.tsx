@@ -3,6 +3,7 @@ import { ArrowDownRight, ArrowUpRight, Mail } from "lucide-react";
 import { AnimatedText } from "@/components/motion/animated-text";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { buttonClasses } from "@/components/ui/button";
+import { HeroPhoto } from "@/features/river-scenery/hero-photo";
 import type { AvailabilityStatus, SiteSettings } from "@/lib/types/content";
 import { cn } from "@/lib/utils/cn";
 import { resolveEmailLink, resolveSocialLinks } from "@/lib/utils/social";
@@ -10,13 +11,18 @@ import { resolveEmailLink, resolveSocialLinks } from "@/lib/utils/social";
 /**
  * Hero.
  *
- * Deliberately photo-free: the first screen sells the work, not a headshot.
+ * Photo-free by default — the first screen sells the work, not a headshot —
+ * but the admin can set `settings.heroImageUrls` to one or more licensed
+ * photos, rendered behind the grid/glow by `HeroPhoto` (crossfading between
+ * them on a timer when there's more than one). Every other section stays
+ * procedural regardless: only this one screen ever gets a real photograph.
  * The entrance runs on mount (nothing above it to scroll past) and follows a
- * fixed reading order — status, name, title, positioning, description, actions,
- * links — so the sequence matches the way the block is meant to be read.
+ * fixed reading order — status, name, title, positioning, description,
+ * actions, links — so the sequence matches the way the block is meant to be
+ * read.
  *
- * A server component: every animated part is an already-client primitive, so
- * this file itself ships no JavaScript.
+ * Everything in this file except `HeroPhoto` is (or wraps) an already-client
+ * primitive, so this component itself stays a server component regardless.
  */
 
 const AVAILABILITY_DOT: Record<AvailabilityStatus, string> = {
@@ -43,8 +49,16 @@ export function Hero({ settings }: { settings: SiteSettings }) {
     >
       {/* Decorative only — hidden from assistive tech and non-interactive. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-        <div className="surface-grid absolute inset-0 [mask-image:radial-gradient(75%_60%_at_50%_0%,black,transparent)]" />
-        <div className="glow-accent absolute inset-x-0 top-0 h-[32rem]" />
+        {settings.heroImageUrls.length > 0 ? (
+          // A photo and the blueprint grid read as clutter together, so the
+          // photo replaces it rather than sitting under it.
+          <HeroPhoto srcs={settings.heroImageUrls} />
+        ) : (
+          <>
+            <div className="surface-grid absolute inset-0 [mask-image:radial-gradient(75%_60%_at_50%_0%,black,transparent)]" />
+            <div className="glow-accent absolute inset-x-0 top-0 h-[32rem]" />
+          </>
+        )}
       </div>
 
       <div className="container-page">

@@ -15,7 +15,7 @@ import { lavaLamp } from "./lava-lamp";
 import { monoTint } from "./mono-tint";
 import { neonInk } from "./neon-ink";
 import { outlineInk } from "./outline-ink";
-import { riverPath } from "./river-path";
+import { riverPath } from "@/features/river-scenery/river-path";
 import { scanlines } from "./scanlines";
 import { scenery } from "./scenery";
 import { sharpChrome } from "./sharp-chrome";

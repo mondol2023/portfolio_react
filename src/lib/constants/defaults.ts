@@ -26,6 +26,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   resumeUrl: undefined,
   availabilityStatus: "available",
   availabilityLabel: "Available for new work",
+  heroImageUrls: [],
 };
 
 /**

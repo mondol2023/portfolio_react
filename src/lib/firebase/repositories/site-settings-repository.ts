@@ -18,6 +18,7 @@ import {
   readObjectArray,
   readOptionalString,
   readString,
+  readStringArray,
   stripUndefined,
 } from "../converters";
 
@@ -72,6 +73,7 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
         "availabilityLabel",
         DEFAULT_SITE_SETTINGS.availabilityLabel,
       ),
+      heroImageUrls: readStringArray(data, "heroImageUrls"),
     };
   } catch (error) {
     console.error("[settings] getSiteSettings failed", error);

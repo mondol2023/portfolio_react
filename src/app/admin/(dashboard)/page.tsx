@@ -11,6 +11,7 @@ import {
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AnimationToggles } from "@/components/admin/animation-toggles";
 import { VisitorsPanel } from "@/components/admin/analytics/visitors-panel";
+import { SceneryToggle } from "@/components/admin/scenery-toggle";
 import { StatCard } from "@/components/admin/stat-card";
 import { ANIMATION_GROUPS } from "@/components/surprise/catalog";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { getEnabledAnimations } from "@/lib/firebase/repositories/animations-rep
 import { getExperiences } from "@/lib/firebase/repositories/experience-repository";
 import { getMessages, getUnreadMessageCount } from "@/lib/firebase/repositories/messages-repository";
 import { getAllProjects } from "@/lib/firebase/repositories/projects-repository";
+import { getLivingRiverEnabled } from "@/lib/firebase/repositories/scenery-repository";
 import { getAllSkills } from "@/lib/firebase/repositories/skills-repository";
 import { parseSearchField } from "@/lib/analytics/search";
 import { formatFullDate } from "@/lib/utils/dates";
@@ -37,14 +39,16 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
   const { q, field } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
 
-  const [projects, experiences, skills, messages, unreadCount, animations] = await Promise.all([
-    getAllProjects(),
-    getExperiences(),
-    getAllSkills(),
-    getMessages(RECENT_LIMIT),
-    getUnreadMessageCount(),
-    getEnabledAnimations(),
-  ]);
+  const [projects, experiences, skills, messages, unreadCount, animations, livingRiver] =
+    await Promise.all([
+      getAllProjects(),
+      getExperiences(),
+      getAllSkills(),
+      getMessages(RECENT_LIMIT),
+      getUnreadMessageCount(),
+      getEnabledAnimations(),
+      getLivingRiverEnabled(),
+    ]);
 
   const publishedCount = projects.filter((project) => project.published).length;
   const enabledSkills = skills.filter((skill) => skill.enabled).length;
@@ -230,6 +234,25 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
         </div>
 
         <AnimationToggles groups={animationGroups} enabled={animations} />
+      </section>
+
+      <section
+        aria-labelledby="site-scenery"
+        className="mt-8 rounded-card border border-border bg-surface"
+      >
+        <div className="border-b border-border px-5 py-4">
+          <h2 id="site-scenery" className="text-sm font-semibold text-fg">
+            Backdrop scene
+          </h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-fg-subtle">
+            The river behind the whole site. It has its own switch rather than
+            sitting in the list above because there can only ever be one of it:
+            both scenes draw on the same layer, so turning this on takes the
+            painted one down.
+          </p>
+        </div>
+
+        <SceneryToggle enabled={livingRiver} />
       </section>
 
       <section aria-labelledby="quick-edits" className="mt-8">

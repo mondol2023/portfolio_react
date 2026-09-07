@@ -1,3 +1,4 @@
+import { StatementMarquee } from "@/components/motion/statement-marquee";
 import { About } from "@/components/sections/about";
 import { Contact } from "@/components/sections/contact";
 import { Experience } from "@/components/sections/experience";
@@ -45,9 +46,22 @@ export default async function HomePage() {
   // skills. Matching them here keeps both sections reading from one source.
   const techIcons = buildTechIconMap(skills);
 
+  // Short, self-contained lines only — each already appears in full,
+  // labelled and readable, elsewhere on the page (hero tagline, about
+  // philosophy, hero name/title, hero availability badge), so the band
+  // that cycles through them can stay decorative rather than duplicate
+  // that content for assistive tech.
+  const statements = [
+    settings.tagline,
+    about.philosophy,
+    `${settings.name} — ${settings.title}`,
+    settings.availabilityLabel,
+  ];
+
   return (
     <>
       <Hero settings={settings} />
+      <StatementMarquee statements={statements} />
       <About about={about} />
       <Skills skills={skills} />
       <Projects projects={featuredProjects} totalCount={allProjects.length} />

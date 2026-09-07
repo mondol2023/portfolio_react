@@ -1,4 +1,4 @@
-import { between } from "../../effect";
+import { between } from "@/components/surprise/effect";
 import type { RiverLayer } from "./layer";
 import { RIVER_CREAM } from "./palette";
 

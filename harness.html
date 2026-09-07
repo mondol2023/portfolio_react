@@ -1,0 +1,108 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#111;display:grid;grid-template-columns:1fr 1fr;gap:2px}
+canvas{width:100%;display:block}
+</style></head><body>
+<script>
+const VS = "\nattribute float aCorner;\n\nvarying vec2 vClip;\n\nvoid main() {\n  // (-1,-1), (3,-1), (-1,3) — a triangle that circumscribes the clip square.\n  vec2 p = vec2(\n    aCorner == 1.0 ? 3.0 : -1.0,\n    aCorner == 2.0 ? 3.0 : -1.0\n  );\n\n  vClip = p;\n  gl_Position = vec4(p, 0.0, 1.0);\n}\n";
+const FS = "\nprecision highp float;\n\nvarying vec2 vClip;\n\nuniform vec2 uResolution;\nuniform float uTime;\n\nuniform vec3 uCamPos;\nuniform float uYaw;\nuniform float uPitch;\nuniform float uFov;\n\nuniform vec3 uSunDir;\nuniform vec3 uMoonDir;\nuniform vec3 uSunTint;\nuniform vec3 uZenith;\nuniform vec3 uHorizon;\nuniform vec3 uWaterDeep;\nuniform vec3 uWaterShallow;\nuniform vec3 uFog;\nuniform vec3 uCloudTint;\nuniform float uCloudDensity;\nuniform float uSunUp;\nuniform float uNight;\n\n\nuniform vec4 uRipples[8];\nuniform float uWind;\n\nfloat lr_swell(vec2 p, float t) {\n  float h = 0.0;\n  h += 0.075 * sin(dot(p, vec2(0.92, 0.39)) * 0.62 + t * 1.05);\n  h += 0.045 * sin(dot(p, vec2(-0.45, 0.89)) * 1.13 + t * 1.55);\n  h += 0.026 * sin(dot(p, vec2(0.31, -0.95)) * 2.05 + t * 2.1);\n  h += 0.013 * sin(dot(p, vec2(-0.88, -0.47)) * 3.6 + t * 2.95);\n  return h * uWind;\n}\n\nfloat lr_ripples(vec2 p) {\n  float h = 0.0;\n\n  for (int i = 0; i < 8; i++) {\n    vec4 r = uRipples[i];\n    if (r.w <= 0.0) continue;\n\n    float d = distance(p, r.xy);\n    float front = r.z * 2.6;\n    float ring = exp(-abs(d - front) * 1.6) * exp(-r.z * 0.95);\n    h += sin((d - front) * 9.0) * 0.055 * ring * r.w;\n  }\n\n  return h;\n}\n\nfloat lr_height(vec2 p, float t) {\n  return lr_swell(p, t) + lr_ripples(p);\n}\n\n/*\n * Normal by central difference, with the sample spacing passed in: close to\n * the camera a tight epsilon resolves every small ripple, but at the horizon\n * one pixel spans many wavelengths and the same epsilon aliases into noise.\n * The caller widens it with distance, which is a cheap stand-in for the\n * mip-mapping a texture-based ocean would get for free.\n */\nvec3 lr_normal(vec2 p, float t, float e) {\n  float hx = lr_height(p + vec2(e, 0.0), t) - lr_height(p - vec2(e, 0.0), t);\n  float hz = lr_height(p + vec2(0.0, e), t) - lr_height(p - vec2(0.0, e), t);\n  return normalize(vec3(-hx, 2.0 * e, -hz));\n}\n\n\n// ---------------------------------------------------------------- noise ----\n\nfloat lr_hash21(vec2 p) {\n  p = fract(p * vec2(123.34, 456.21));\n  p += dot(p, p + 45.32);\n  return fract(p.x * p.y);\n}\n\nfloat lr_vnoise(vec2 p) {\n  vec2 i = floor(p);\n  vec2 f = fract(p);\n  vec2 u = f * f * (3.0 - 2.0 * f);\n\n  return mix(\n    mix(lr_hash21(i), lr_hash21(i + vec2(1.0, 0.0)), u.x),\n    mix(lr_hash21(i + vec2(0.0, 1.0)), lr_hash21(i + vec2(1.0, 1.0)), u.x),\n    u.y\n  );\n}\n\n/* Five octaves is where cloud edges stop looking like a lava lamp and start\n * looking torn. The 2.02 lacunarity is deliberately not 2.0 — an exact\n * doubling lines every octave's grid up and leaves visible square artefacts. */\nfloat lr_fbm(vec2 p) {\n  float v = 0.0;\n  float a = 0.5;\n\n  for (int i = 0; i < 5; i++) {\n    v += a * lr_vnoise(p);\n    p *= 2.02;\n    a *= 0.5;\n  }\n\n  return v;\n}\n\n// ------------------------------------------------------------------ sky ----\n\n/* Stars live in direction space rather than on a plane, so they stay pinned to\n * the sky while the camera drifts downstream instead of streaming past like\n * snow. The grid is coarse and most cells are rejected outright. */\nvec3 lr_stars(vec3 dir) {\n  if (uNight <= 0.01 || dir.y <= 0.0) return vec3(0.0);\n\n  vec2 sc = vec2(atan(dir.z, dir.x) * 3.0, asin(clamp(dir.y, -1.0, 1.0)) * 6.0) * 12.0;\n  vec2 cell = floor(sc);\n  vec2 local = fract(sc) - 0.5;\n\n  float seed = lr_hash21(cell);\n  if (seed < 0.86) return vec3(0.0);\n\n  vec2 jitter = vec2(lr_hash21(cell + 3.7), lr_hash21(cell + 9.1)) - 0.5;\n  float d = length(local - jitter * 0.6);\n\n  float twinkle = 0.65 + 0.35 * sin(uTime * (1.4 + seed * 5.0) + seed * 40.0);\n  float star = smoothstep(0.09, 0.0, d) * twinkle;\n\n  // Fade the field out near the horizon, where haze would swallow it anyway.\n  float lift = smoothstep(0.0, 0.35, dir.y);\n\n  return vec3(star * lift * uNight * (0.5 + seed));\n}\n\n/* A flat deck of cloud at a fixed altitude, intersected by the ray. Because it\n * is a real plane and not a screen-space wash, the clouds converge towards the\n * horizon on their own and the camera's forward drift moves through them. */\nvec4 lr_clouds(vec3 dir) {\n  if (dir.y <= 0.015 || uCloudDensity <= 0.001) return vec4(0.0);\n\n  float t = (26.0 - uCamPos.y) / dir.y;\n  if (t <= 0.0 || t > 4000.0) return vec4(0.0);\n\n  vec2 p = (uCamPos.xz + dir.xz * t) * 0.012;\n  p += vec2(uTime * 0.012, uTime * 0.004);\n\n  float n = lr_fbm(p);\n  // A narrow threshold band: widen it and the deck turns to even haze, which is\n  // what makes procedural cloud read as dirt on the lens rather than weather.\n  float cover = smoothstep(0.50 - uCloudDensity * 0.30, 0.66, n);\n\n  // Detail on the lit edges only; flat-shaded cloud reads as painted-on fog.\n  float edge = smoothstep(0.42, 0.78, lr_fbm(p * 3.1 + 11.0));\n  vec3 tint = mix(uCloudTint * 0.72, uCloudTint, edge);\n\n  // Cloud meeting the horizon has to dissolve into it, or the deck's own edge\n  // shows up as a hard line across the sky.\n  float horizonFade = smoothstep(0.015, 0.16, dir.y);\n\n  return vec4(tint, cover * horizonFade * 0.95);\n}\n\nvec3 lr_sky(vec3 dir) {\n  float up = clamp(dir.y, -1.0, 1.0);\n\n  // Two-stage gradient: a tight band of horizon colour, then a long fade to\n  // zenith. A single smoothstep here is what makes a sky look like a CSS\n  // gradient rather than air.\n  vec3 col = mix(uHorizon, uZenith, pow(smoothstep(-0.05, 0.62, up), 0.75));\n\n  float sunAngle = max(dot(dir, uSunDir), 0.0);\n  float moonAngle = max(dot(dir, uMoonDir), 0.0);\n\n  // Broad scattering halo, then the disc itself.\n  col += uSunTint * pow(sunAngle, 6.0) * 0.30 * uSunUp;\n  col += uSunTint * pow(sunAngle, 220.0) * 1.60 * uSunUp;\n\n  col += lr_stars(dir);\n\n  // The moon gets a hard disc and almost no halo. Moonlight does not scatter\n  // the way sunlight does — a broad glow around it reads as a second, weaker\n  // sun and flattens the night sky into dusk.\n  vec3 moonlight = vec3(0.78, 0.83, 0.95);\n  col += moonlight * pow(moonAngle, 1400.0) * 1.1 * uNight;\n  col += moonlight * pow(moonAngle, 60.0) * 0.035 * uNight;\n\n  vec4 cloud = lr_clouds(dir);\n  col = mix(col, cloud.rgb, cloud.a);\n\n  return col;\n}\n\n// ---------------------------------------------------------------- water ----\n\nvec3 lr_water(vec3 ro, vec3 rd) {\n  float t = -ro.y / rd.y;\n  vec3 pos = ro + rd * t;\n  vec2 p = pos.xz;\n\n  /* Sample spacing grows with distance. One pixel at the horizon spans many\n   * wavelengths, and differencing at a fixed epsilon there turns the surface\n   * into static — this is the poor relation of the mip-mapping a texture-based\n   * ocean would get for free. */\n  float e = 0.035 + t * 0.0055;\n  vec3 n = lr_normal(p, uTime, e);\n\n  // Flatten towards the horizon so distant water settles into haze instead of\n  // shimmering with detail the pixels have no resolution to carry.\n  n = normalize(mix(n, vec3(0.0, 1.0, 0.0), smoothstep(30.0, 140.0, t)));\n\n  vec3 view = -rd;\n  float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(view, n), 0.0), 5.0);\n\n  // Reflected ray, kept above the horizon: a wave steep enough to aim the\n  // reflection downward would otherwise sample the sky from underneath.\n  vec3 refl = reflect(rd, n);\n  refl.y = abs(refl.y) + 0.008;\n  vec3 sky = lr_sky(refl);\n\n  vec3 body = mix(uWaterShallow, uWaterDeep, smoothstep(1.5, 48.0, t));\n\n  // A little ambient light leaks into the body colour, which is what stops\n  // night water from reading as flat black paint.\n  body *= 0.72 + 0.55 * (uSunUp * 0.8 + uNight * 0.12);\n\n  vec3 col = mix(body, sky, fresnel);\n\n  // Sun and moon glitter. The very tight exponent is the whole point: broad\n  // specular on water looks like plastic; a thousand separate flashes looks\n  // like water.\n  vec3 hSun = normalize(view + uSunDir);\n  col += uSunTint * pow(max(dot(n, hSun), 0.0), 260.0) * 2.4 * uSunUp;\n\n  // Moon glitter is a narrow path of separate sparks, not a pool of light: the\n  // moon is a half-degree disc, so its reflection is as tight as the sun's and\n  // only looks different because there is nothing else lit.\n  vec3 hMoon = normalize(view + uMoonDir);\n  col += vec3(0.8, 0.85, 1.0) * pow(max(dot(n, hMoon), 0.0), 900.0) * 1.1 * uNight;\n\n  // Foam only where the surface is genuinely steep, and only near the camera.\n  float steep = 1.0 - n.y;\n  float foam = smoothstep(0.020, 0.075, steep) * smoothstep(70.0, 8.0, t);\n  col = mix(col, mix(col, vec3(1.0), 0.55), foam * 0.5);\n\n  return mix(col, uFog, smoothstep(35.0, 170.0, t));\n}\n\n// ----------------------------------------------------------------- main ----\n\nvoid main() {\n  float aspect = uResolution.x / uResolution.y;\n\n  // Inverse of core/camera.ts: build the ray in view space, pitch it, yaw it.\n  vec3 d = vec3(vClip.x * aspect * uFov, vClip.y * uFov, 1.0);\n\n  float cp = cos(uPitch);\n  float sp = sin(uPitch);\n  d = vec3(d.x, d.y * cp + d.z * sp, -d.y * sp + d.z * cp);\n\n  float cy = cos(uYaw);\n  float sy = sin(uYaw);\n  d = vec3(d.x * cy + d.z * sy, d.y, -d.x * sy + d.z * cy);\n\n  vec3 rd = normalize(d);\n\n  // Branch rather than a ternary: a ternary is free to evaluate both sides, and\n  // lr_water divides by rd.y — at the horizon that is a division by nearly zero\n  // whose NaNs some drivers happily propagate into the result they did select.\n  vec3 col;\n  if (rd.y < -0.0015) {\n    col = lr_water(uCamPos, rd);\n  } else {\n    col = lr_sky(rd);\n  }\n\n  // Gentle filmic shoulder. Without it the sun's specular clips to flat white\n  // discs; with it the highlights roll off and keep their colour at the edges.\n  col = col / (col + 0.62) * 1.42;\n  col = pow(max(col, vec3(0.0)), vec3(0.4545));\n\n  gl_FragColor = vec4(col, 1.0);\n}\n";
+const SKIES = [{"phase":0.02,"sky":{"zenith":[0.18319327731092436,0.28291316526610644,0.46946778711484594],"horizon":[0.9187675070028011,0.6661064425770308,0.4425770308123249],"sunTint":[1,0.7742296918767507,0.5266106442577031],"waterDeep":[0.10980392156862745,0.1803921568627451,0.29187675070028013],"waterShallow":[0.2605042016806723,0.3663865546218487,0.5148459383753502],"fog":[0.7759103641456583,0.6190476190476191,0.48403361344537815],"cloudTint":[1,0.838655462184874,0.680672268907563],"cloudDensity":0.5285714285714286,"sunDir":[0.7205791009451586,0.10114478882628594,0.6859558957938571],"moonDir":[-0.7205791009451586,-0.10114478882628594,0.6859558957938571],"sunUp":1,"night":0}},{"phase":0.25,"sky":{"zenith":[0.1939668174962293,0.46153846153846156,0.7819004524886878],"horizon":[0.8003016591251886,0.8941176470588236,0.9565610859728507],"sunTint":[1,0.9921568627450981,0.9716440422322775],"waterDeep":[0.07300150829562595,0.25098039215686274,0.37254901960784315],"waterShallow":[0.2935143288084464,0.5604826546003017,0.6823529411764706],"fog":[0.7984917043740574,0.8805429864253393,0.9306184012066365],"cloudTint":[1,1,1],"cloudDensity":0.3323076923076923,"sunDir":[4.19897945987388e-17,0.7619393177594594,0.6476484200955405],"moonDir":[-4.19897945987388e-17,-0.7619393177594594,0.6476484200955405],"sunUp":1,"night":0}},{"phase":0.48,"sky":{"zenith":[0.2901960784313726,0.3733333333333334,0.603921568627451],"horizon":[0.9270588235294117,0.5788235294117647,0.3529411764705883],"sunTint":[1,0.7098039215686275,0.4321568627450981],"waterDeep":[0.12627450980392158,0.1858823529411765,0.28313725490196084],"waterShallow":[0.4549019607843137,0.42431372549019614,0.5082352941176471],"fog":[0.8713725490196078,0.5992156862745099,0.4125490196078432],"cloudTint":[1,0.7231372549019608,0.5215686274509805],"cloudDensity":0.5399999999999999,"sunDir":[-0.7205791009451586,0.10114478882628616,0.6859558957938571],"moonDir":[0.7205791009451586,-0.10114478882628616,0.6859558957938571],"sunUp":1,"night":0}},{"phase":0.78,"sky":{"zenith":[0.03333333333333334,0.04705882352941177,0.125],"horizon":[0.11519607843137257,0.1411764705882353,0.26617647058823535],"sunTint":[0.19656862745098042,0.22598039215686277,0.3950980392156863],"waterDeep":[0.01862745098039216,0.027450980392156866,0.06715686274509805],"waterShallow":[0.05882352941176471,0.08627450980392157,0.16862745098039217],"fog":[0.09411764705882354,0.11862745098039217,0.22058823529411767],"cloudTint":[0.1254901960784314,0.15343137254901962,0.2705882352941177],"cloudDensity":0.3625,"sunDir":[0.12874542896399083,-0.7498968598426742,0.6489062444752514],"moonDir":[-0.12874542896399083,0.7498968598426742,0.6489062444752514],"sunUp":0,"night":1}}];
+const MAX_RIPPLES = 8;
+const log = [];
+const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+const lin = (rgb) => rgb.map(toLinear);
+function say(m){ log.push(m); console.log(m); }
+
+for (const { phase, sky } of SKIES) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 480; canvas.height = 270;
+  document.body.append(canvas);
+
+  const gl = canvas.getContext("webgl", { alpha: true, antialias: false, depth: false, stencil: false });
+  if (!gl) { say("FAIL no webgl"); break; }
+
+  function compile(type, src, name) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      say("FAIL " + name + " compile: " + gl.getShaderInfoLog(s));
+      return null;
+    }
+    say("ok " + name + " compiled");
+    return s;
+  }
+
+  const vs = compile(gl.VERTEX_SHADER, VS, "vertex");
+  const fs = compile(gl.FRAGMENT_SHADER, FS, "fragment");
+  if (!vs || !fs) break;
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { say("FAIL link: " + gl.getProgramInfoLog(prog)); break; }
+  say("ok linked");
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,1,2]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "aCorner");
+  if (loc < 0) { say("FAIL aCorner attribute missing"); break; }
+  gl.useProgram(prog);
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 1, gl.FLOAT, false, 0, 0);
+
+  const u = (n) => gl.getUniformLocation(prog, n);
+  const missing = ["uResolution","uTime","uCamPos","uYaw","uPitch","uFov","uSunDir","uMoonDir","uSunTint","uZenith","uHorizon","uWaterDeep","uWaterShallow","uFog","uCloudTint","uCloudDensity","uSunUp","uNight","uWind","uRipples[0]"].filter((n) => u(n) === null);
+  if (missing.length) say("note uniforms not found (may be optimised out): " + missing.join(", "));
+
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.uniform2f(u("uResolution"), canvas.width, canvas.height);
+  gl.uniform1f(u("uTime"), 12.5);
+  gl.uniform3f(u("uCamPos"), 0, 2.05, 40);
+  gl.uniform1f(u("uYaw"), 0.04);
+  gl.uniform1f(u("uPitch"), -0.02);
+  gl.uniform1f(u("uFov"), 0.62);
+  gl.uniform3f(u("uSunDir"), ...sky.sunDir);
+  gl.uniform3f(u("uMoonDir"), ...sky.moonDir);
+  gl.uniform3f(u("uSunTint"), ...lin(sky.sunTint));
+  gl.uniform3f(u("uZenith"), ...lin(sky.zenith));
+  gl.uniform3f(u("uHorizon"), ...lin(sky.horizon));
+  gl.uniform3f(u("uWaterDeep"), ...lin(sky.waterDeep));
+  gl.uniform3f(u("uWaterShallow"), ...lin(sky.waterShallow));
+  gl.uniform3f(u("uFog"), ...lin(sky.fog));
+  gl.uniform3f(u("uCloudTint"), ...lin(sky.cloudTint));
+  gl.uniform1f(u("uCloudDensity"), sky.cloudDensity);
+  gl.uniform1f(u("uSunUp"), sky.sunUp);
+  gl.uniform1f(u("uNight"), sky.night);
+  gl.uniform1f(u("uWind"), 1.2);
+
+  const ripples = new Float32Array(MAX_RIPPLES * 4);
+  ripples[0] = 1; ripples[1] = 46; ripples[2] = 0.7; ripples[3] = 1;
+  gl.uniform4fv(u("uRipples[0]"), ripples);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  const err = gl.getError();
+  if (err !== 0) { say("FAIL gl error " + err); break; }
+
+  const px = new Uint8Array(canvas.width * canvas.height * 4);
+  gl.readPixels(0,0,canvas.width,canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,px);
+
+  // Sky band (top) vs water band (bottom): they must not be the same colour,
+  // and nothing may come back as NaN-black or fully transparent.
+  let topR=0, topG=0, topB=0, botR=0, botG=0, botB=0, n=0, blank=0;
+  const w = canvas.width, h = canvas.height;
+  for (let x=0;x<w;x+=4){
+    for (let y=0;y<20;y++){
+      let i=((h-1-y)*w+x)*4; topR+=px[i];topG+=px[i+1];topB+=px[i+2];
+      i=((20+y)*w+x)*4; botR+=px[i];botG+=px[i+1];botB+=px[i+2];
+      n++;
+    }
+  }
+  for (let i=0;i<px.length;i+=4) if (px[i]===0&&px[i+1]===0&&px[i+2]===0) blank++;
+  const top=[topR/n|0,topG/n|0,topB/n|0], bot=[botR/n|0,botG/n|0,botB/n|0];
+  const diff = Math.abs(top[0]-bot[0])+Math.abs(top[1]-bot[1])+Math.abs(top[2]-bot[2]);
+  say("phase " + phase + " sky=rgb(" + top + ") water=rgb(" + bot + ") diff=" + diff + " pureBlackPx=" + (blank/(px.length/4)*100).toFixed(1) + "%");
+  if (diff < 6) say("FAIL phase " + phase + ": sky and water are the same colour");
+  if (blank/(px.length/4) > 0.5) say("FAIL phase " + phase + ": mostly black");
+}
+say("HARNESS_DONE");
+document.title = log.join(" | ");
+</script></body></html>

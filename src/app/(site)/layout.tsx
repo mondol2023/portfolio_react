@@ -7,8 +7,11 @@ import { SkipLink } from "@/components/layout/skip-link";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteAnimations } from "@/components/surprise/site-animations";
 import { SurpriseButton } from "@/components/surprise/surprise-button";
+import { LivingRiverBackdrop } from "@/features/living-river";
+import { RiverSceneryBackdrop } from "@/features/river-scenery/river-scenery-backdrop";
 import { getSiteUrl } from "@/lib/constants/site";
 import { getEnabledAnimations } from "@/lib/firebase/repositories/animations-repository";
+import { getLivingRiverEnabled } from "@/lib/firebase/repositories/scenery-repository";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 import { resolveSocialLinks } from "@/lib/utils/social";
 
@@ -20,10 +23,20 @@ import { resolveSocialLinks } from "@/lib/utils/social";
  * out simply by living outside this group.
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
-  const [settings, animations] = await Promise.all([
+  const [settings, animations, livingRiver] = await Promise.all([
     getSiteSettings(),
     getEnabledAnimations(),
+    getLivingRiverEnabled(),
   ]);
+
+  /*
+   * Exactly one river. Both scenes mount at `LAYER.backdrop` (-8), so running
+   * them together would stack a WebGL canvas on a CSS gradient and give the
+   * reader neither. The dashboard switch decides which, and `river-path` is
+   * pulled out of the pinned animations too — otherwise turning it on in the
+   * animation list would quietly put the old scene back on top of the new one.
+   */
+  const pinned = livingRiver ? animations.filter((id) => id !== "river-path") : animations;
 
   const socials = resolveSocialLinks(settings);
 
@@ -44,10 +57,12 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       <VisitTracker />
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
+      {/* One river or the other — see the note above `pinned`. */}
+      {livingRiver ? <LivingRiverBackdrop /> : <RiverSceneryBackdrop />}
       {/* Delete this one line to remove the circuit road entirely. */}
       {/* <CircuitRoad /> */}
       {/* Whatever the dashboard switched on. Nothing at all, until it does. */}
-      <SiteAnimations ids={animations} />
+      <SiteAnimations ids={pinned} />
       <SkipLink />
       <SiteHeader name={settings.name} />
 
@@ -58,7 +73,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       <SiteFooter settings={settings} />
 
       {/* Delete this one line to remove the surprise button and the bomb. */}
-      <SurpriseButton pinned={animations} />
+      <SurpriseButton pinned={pinned} />
     </>
   );
 }

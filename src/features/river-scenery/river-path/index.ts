@@ -1,4 +1,4 @@
-import { fadeIn, injectStyle, LAYER, mountLayer, type SurpriseEffect } from "../../effect";
+import { fadeIn, injectStyle, LAYER, mountLayer, type SurpriseEffect } from "@/components/surprise/effect";
 import { boats } from "./boats";
 import type { RiverLayer } from "./layer";
 import { nightAccents } from "./night-accents";

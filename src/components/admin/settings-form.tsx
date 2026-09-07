@@ -1,6 +1,6 @@
 "use client";
 
-import { useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 
 import { FormActions, FormRow, FormSection } from "./form-shell";
 import { formResolver } from "./form-resolver";
+import { StringListInput } from "./string-list-input";
 import { useActionSubmit } from "./use-action-submit";
 
 /**
@@ -155,6 +156,33 @@ export function SettingsForm({ initialValues }: SettingsFormProps) {
             )}
           </Field>
         </FormRow>
+      </FormSection>
+
+      <FormSection
+        title="Background"
+        description="The scene behind the hero. Leave empty for today's photo-free look."
+      >
+        <Field
+          label="Hero photo URLs"
+          error={errors.heroImageUrls?.message}
+          hint="Photos you have the rights to use — Unsplash/Pexels or your own files, uploaded somewhere on the allowed image hosts. One photo stays static; two or more crossfade between each other on a timer. Every other section keeps its procedural river scenery regardless of this setting."
+        >
+          {(props) => (
+            <Controller
+              control={control}
+              name="heroImageUrls"
+              render={({ field }) => (
+                <StringListInput
+                  {...props}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="https://images.unsplash.com/… then Enter"
+                  block
+                />
+              )}
+            />
+          )}
+        </Field>
       </FormSection>
 
       <FormSection title="Links" description="Leave a field empty to hide that link entirely.">

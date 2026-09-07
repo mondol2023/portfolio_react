@@ -24,6 +24,13 @@ export const siteSettingsSchema = z.object({
   resumeUrl: optionalUrl,
   availabilityStatus: z.enum(AVAILABILITY_STATUSES),
   availabilityLabel: requiredText("Availability label", 3, 60),
+  heroImageUrls: z.preprocess(
+    (value) =>
+      Array.isArray(value)
+        ? value.filter((item) => typeof item === "string" && item.trim() !== "")
+        : value,
+    z.array(z.url("Each hero photo must be a full URL.")).max(6),
+  ),
 });
 
 export type SiteSettingsInput = z.infer<typeof siteSettingsSchema>;

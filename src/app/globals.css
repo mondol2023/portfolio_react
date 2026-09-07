@@ -481,6 +481,24 @@
     opacity: 1;
     animation: ambient-twinkle 7s ease-in-out infinite alternate;
   }
+
+  /*
+   * Hero photo
+   * ----------
+   * The hero's one photographic element — see `HeroPhoto`. A slow Ken-Burns
+   * drift, plus a scrim that fades the photo into `--bg` at every edge so a
+   * hero with no grid or glow behind it still reads as part of the same page
+   * rather than a pasted-in banner.
+   */
+  .hero-photo-img {
+    animation: hero-photo-drift 24s ease-in-out infinite alternate;
+  }
+
+  .hero-photo-scrim {
+    background:
+      linear-gradient(to bottom, transparent 35%, var(--bg) 100%),
+      linear-gradient(to right, var(--bg) 0%, transparent 25%, transparent 75%, var(--bg) 100%);
+  }
 }
 
 @keyframes dialog-in {
@@ -535,6 +553,15 @@
   }
 }
 
+@keyframes hero-photo-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
 /*
  * Reduced motion, part two.
  *
@@ -574,6 +601,13 @@
 
   .ambient {
     transition: none;
+  }
+
+  /* The drift's end state is a scaled-up crop — the collapsed 0.01ms version
+     of that would snap the photo to its most zoomed-in frame, not its rest
+     state, so it is stopped outright instead. */
+  .hero-photo-img {
+    animation: none !important;
   }
 }
 

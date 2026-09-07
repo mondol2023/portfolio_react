@@ -167,6 +167,12 @@ export interface SiteSettings {
   resumeUrl?: string;
   availabilityStatus: AvailabilityStatus;
   availabilityLabel: string;
+  /**
+   * Licensed photos behind the hero — see `@/features/river-scenery/hero-photo`.
+   * Two or more rotate on a timer with a crossfade; one stays static; an empty
+   * list renders today's photo-free hero, so this is safe to leave empty.
+   */
+  heroImageUrls: string[];
 }
 
 export interface ContactMessage {

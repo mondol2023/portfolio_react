@@ -99,5 +99,6 @@ export function siteSettingsToInput(settings: SiteSettings): SiteSettingsInput {
     resumeUrl: settings.resumeUrl ?? "",
     availabilityStatus: settings.availabilityStatus,
     availabilityLabel: settings.availabilityLabel,
+    heroImageUrls: settings.heroImageUrls,
   };
 }
