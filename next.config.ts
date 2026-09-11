@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
       protocol: "https" as const,
       hostname,
     })),
+    // Next 16 requires an explicit allowlist for any local image `src` that
+    // carries a query string (see the "Local Images with Query Strings"
+    // upgrade note). The generated-cover route is the one local image URL
+    // that does — every query is per-render and HMAC-signed (`signature.ts`
+    // verifies it before rendering anything), so the query itself needs no
+    // further restriction here.
+    localPatterns: [{ pathname: "/api/repo-imagery/cover" }],
   },
   // Next 16 removed the `eslint` config key and `next lint`; linting runs
   // through the ESLint CLI (`npm run lint`) instead.

@@ -1,17 +1,14 @@
 import { VisitTracker } from "@/components/analytics/visit-tracker";
-import { AmbientBackground } from "@/components/layout/ambient-background";
-import { CircuitRoad } from "@/components/motion/circuit-road";
+import { SceneryGate } from "@/components/layout/scenery-gate";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteAnimations } from "@/components/surprise/site-animations";
 import { SurpriseButton } from "@/components/surprise/surprise-button";
-import { LivingRiverBackdrop } from "@/features/living-river";
-import { RiverSceneryBackdrop } from "@/features/river-scenery/river-scenery-backdrop";
 import { getSiteUrl } from "@/lib/constants/site";
 import { getEnabledAnimations } from "@/lib/firebase/repositories/animations-repository";
-import { getLivingRiverEnabled } from "@/lib/firebase/repositories/scenery-repository";
+import { getSiteLayers } from "@/lib/firebase/repositories/scenery-repository";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 import { resolveSocialLinks } from "@/lib/utils/social";
 
@@ -23,10 +20,10 @@ import { resolveSocialLinks } from "@/lib/utils/social";
  * out simply by living outside this group.
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
-  const [settings, animations, livingRiver] = await Promise.all([
+  const [settings, animations, layers] = await Promise.all([
     getSiteSettings(),
     getEnabledAnimations(),
-    getLivingRiverEnabled(),
+    getSiteLayers(),
   ]);
 
   /*
@@ -35,8 +32,14 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
    * reader neither. The dashboard switch decides which, and `river-path` is
    * pulled out of the pinned animations too — otherwise turning it on in the
    * animation list would quietly put the old scene back on top of the new one.
+   *
+   * The exclusion lives here rather than in the layer registry's `conflicts`
+   * because it crosses the two registries: `river-path` is an effect, and the
+   * effect list has no way to name a layer.
    */
-  const pinned = livingRiver ? animations.filter((id) => id !== "river-path") : animations;
+  const pinned = layers["living-river"]
+    ? animations.filter((id) => id !== "river-path")
+    : animations;
 
   const socials = resolveSocialLinks(settings);
 
@@ -55,13 +58,26 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
     <>
       <JsonLd data={person} />
       <VisitTracker />
-      {/* Public shell only — the admin dashboard stays flat and quiet. */}
-      <AmbientBackground />
-      {/* One river or the other — see the note above `pinned`. */}
-      {livingRiver ? <LivingRiverBackdrop /> : <RiverSceneryBackdrop />}
-      {/* Delete this one line to remove the circuit road entirely. */}
-      {/* <CircuitRoad /> */}
-      {/* Whatever the dashboard switched on. Nothing at all, until it does. */}
+      {/*
+        Public shell only — the admin dashboard stays flat and quiet. `glow` is
+        the drifting colour wash that carries the section tint; `sectionScenery`
+        and `livingRiver` are the two candidate full-viewport scenes, and
+        `SceneryGate` is what picks at most one of them for this visitor — see
+        its own doc comment for why that can differ from the flags themselves.
+        Turning the wash off still leaves the tone anchors observed, so the
+        canvas keeps changing scene as the reader moves down the page.
+      */}
+      <SceneryGate
+        glow={layers["ambient-glow"]}
+        sectionScenery={layers["section-scenery"]}
+        livingRiver={layers["living-river"]}
+      />
+      {/*
+        The painted river, `river-path`, lives in this list rather than beside
+        `SceneryGate` above — it is an effect, not a layer — which is what the
+        `pinned` filter above exists to keep out of step with it. Otherwise:
+        whatever the dashboard switched on. Nothing at all, until it does.
+      */}
       <SiteAnimations ids={pinned} />
       <SkipLink />
       <SiteHeader name={settings.name} />

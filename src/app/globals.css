@@ -49,6 +49,18 @@
   /* Ambient grid / glow strength, tuned per theme */
   --grid-line: rgba(26, 22, 20, 0.045);
   --glow: rgba(194, 65, 12, 0.1);
+
+  /*
+   * The site's one easing curve — quick to leave, soft to land.
+   *
+   * The same four numbers as `EASE_OUT` in `components/motion/variants.ts`.
+   * Motion components read them from there; every CSS transition gets them
+   * from here, because `@theme` below points Tailwind's default transition
+   * timing function at this variable. A hover that starts in CSS and a
+   * reveal that runs in JavaScript therefore decelerate identically instead
+   * of each using whichever curve its own library defaults to.
+   */
+  --ease-site: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
@@ -139,6 +151,30 @@
   --tone-soft: rgba(29, 78, 216, 0.13);
 }
 
+/*
+ * Case-study stages. One film, changing light: the case study runs through
+ * these four in order and the backdrop follows, so the reader can feel which
+ * part of the story they are in before they have read a word of it. They sit at
+ * the same 700/400 levels as the section tones above, for the same contrast
+ * reason.
+ */
+[data-tone="story-open"] {
+  --tone: #b45309;
+  --tone-soft: rgba(180, 83, 9, 0.13);
+}
+[data-tone="story-tension"] {
+  --tone: #4338ca;
+  --tone-soft: rgba(67, 56, 202, 0.14);
+}
+[data-tone="story-structure"] {
+  --tone: #0369a1;
+  --tone-soft: rgba(3, 105, 161, 0.13);
+}
+[data-tone="story-clarity"] {
+  --tone: #0f766e;
+  --tone-soft: rgba(15, 118, 110, 0.13);
+}
+
 /* Dark tones at the 400 level — same hues, lifted for contrast on --bg. */
 .dark [data-tone="hero"] {
   --tone: #fb923c;
@@ -163,6 +199,22 @@
 .dark [data-tone="contact"] {
   --tone: #60a5fa;
   --tone-soft: rgba(96, 165, 250, 0.16);
+}
+.dark [data-tone="story-open"] {
+  --tone: #fbbf24;
+  --tone-soft: rgba(251, 191, 36, 0.15);
+}
+.dark [data-tone="story-tension"] {
+  --tone: #818cf8;
+  --tone-soft: rgba(129, 140, 248, 0.16);
+}
+.dark [data-tone="story-structure"] {
+  --tone: #38bdf8;
+  --tone-soft: rgba(56, 189, 248, 0.15);
+}
+.dark [data-tone="story-clarity"] {
+  --tone: #2dd4bf;
+  --tone-soft: rgba(45, 212, 191, 0.15);
 }
 
 @theme inline {
@@ -201,6 +253,15 @@
 
   --shadow-elevated: var(--shadow-md);
   --shadow-floating: var(--shadow-lg);
+
+  /*
+   * Overrides Tailwind's own default (`ease-in-out`) for every bare
+   * `transition-*` utility, which is how the shared curve reaches the ~20
+   * hover and state transitions in the app without each of them naming an
+   * easing class. A utility that names one explicitly still wins — this
+   * only replaces the default.
+   */
+  --default-transition-timing-function: var(--ease-site);
 }
 
 @layer base {
@@ -308,6 +369,680 @@
 
   .glow-accent {
     background: radial-gradient(60% 60% at 50% 0%, var(--glow) 0%, transparent 70%);
+  }
+
+  /*
+   * Case-study depth layers
+   * -----------------------
+   * The chapter's middle ground: a soft plane the text sits on top of, so a
+   * chapter reads as an object at a distance from the backdrop rather than as
+   * paragraphs floating directly on the canvas. Tinted with `--tone-soft`, so it
+   * changes colour with the stage it belongs to instead of fighting it — and
+   * because `--tone-soft` is an `@property`, it cross-fades rather than cutting.
+   *
+   * Purely decorative and purely behind: both classes are on `aria-hidden`
+   * elements at negative z-index, and removing the whole layer changes nothing
+   * a reader can read.
+   */
+  .story-plane {
+    background:
+      radial-gradient(90% 120% at 10% 0%, var(--tone-soft) 0%, transparent 62%),
+      linear-gradient(to bottom, var(--bg-subtle) 0%, transparent 78%);
+  }
+
+  /*
+   * Act-specific composition.
+   *
+   * Same plane, four ways of building it, and the difference is the act's
+   * feeling rather than its colour — the colour already changes on its own,
+   * because `--tone-soft` is the stage's. `open` is one diffuse wash from above
+   * and nothing else. `tension` is two offset sources that overlap, which is
+   * what gives the space behind that chapter a front and a back instead of a
+   * single flat tint. `structure` drops radial light entirely for a straight
+   * left-to-right ramp: the one act composed out of alignment. `clarity` is a
+   * single centred wash, wide and low, and the quietest of the four.
+   */
+  .story-plane--open {
+    background:
+      radial-gradient(120% 90% at 50% -10%, var(--tone-soft) 0%, transparent 60%),
+      linear-gradient(to bottom, var(--bg-subtle) 0%, transparent 70%);
+  }
+
+  .story-plane--tension {
+    background:
+      radial-gradient(70% 80% at 6% 0%, var(--tone-soft) 0%, transparent 55%),
+      radial-gradient(55% 70% at 96% 34%, var(--tone-soft) 0%, transparent 58%),
+      linear-gradient(to bottom, var(--bg-subtle) 0%, transparent 88%);
+  }
+
+  .story-plane--structure {
+    background:
+      linear-gradient(to right, var(--tone-soft) 0%, transparent 46%),
+      linear-gradient(to bottom, var(--bg-subtle) 0%, transparent 74%);
+  }
+
+  .story-plane--clarity {
+    background:
+      radial-gradient(85% 100% at 50% 18%, var(--tone-soft) 0%, transparent 70%),
+      linear-gradient(to bottom, var(--bg-subtle) 0%, transparent 60%);
+  }
+
+  /* The thread between chapters — one story, not seven cards. */
+  .story-thread {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--border-strong) 55%,
+      var(--tone) 100%
+    );
+  }
+
+  /*
+   * How much of the thread is actually drawn.
+   *
+   * The strength is carried in the gradient's stop positions rather than in
+   * `opacity`, because Motion animates the element's opacity on entrance and an
+   * inline style would win over anything declared here.
+   *
+   * The progression is the story's: barely there through the opening, more
+   * present under the tension, fully drawn through the act where the thing is
+   * being built, and easing off again once it has resolved. A reader should
+   * feel the line has been there the whole way down long before they notice
+   * there is a line at all.
+   */
+  .story-thread--open {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 46%,
+      var(--border-strong) 82%,
+      var(--tone) 100%
+    );
+  }
+
+  .story-thread--tension {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--border-strong) 62%,
+      var(--tone) 100%
+    );
+  }
+
+  .story-thread--structure {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--border-strong) 34%,
+      var(--tone) 100%
+    );
+  }
+
+  .story-thread--clarity {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--border-strong) 50%,
+      var(--tone) 100%
+    );
+  }
+
+  /*
+   * The last thread on the page ends in a node instead of running out. The line
+   * that has been descending since the first chapter arrives somewhere, which is
+   * the difference between a story ending and a page stopping.
+   */
+  .story-thread--end::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: -2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: var(--tone);
+  }
+
+  /*
+   * A junction, not an ending.
+   *
+   * Threads that cross an act boundary end in a hollow node where they meet the
+   * new chapter — the same shape as the story's terminal node, drawn open. The
+   * grammar is the whole point: a filled node is where the descent arrives, an
+   * open one is where it changes. A reader never decodes this; they register
+   * that something was marked, which is all a threshold has to do.
+   *
+   * The node takes the *new* act's `--tone`, because it belongs to the chapter
+   * it introduces rather than the one it left.
+   */
+  /*
+   * The chapter rule at an act boundary.
+   *
+   * Ordinary chapters rule a flat hairline; a chapter that opens a new act
+   * lights the first sixth of it in that act's tone and settles into the same
+   * hairline for the rest. The reader sees the line start somewhere rather than
+   * simply being there, which is exactly as much as a threshold should say.
+   */
+  .story-rule--turn {
+    background: linear-gradient(
+      to right,
+      var(--tone) 0%,
+      var(--border) 18%,
+      var(--border) 100%
+    );
+  }
+
+  .story-thread--turn::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: -2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: var(--bg);
+    box-shadow: 0 0 0 1px var(--tone);
+  }
+
+  /*
+   * The bridge out of the opening shot.
+   *
+   * The cover image is the last thing the reader sees before the story starts,
+   * and until now there was nothing between it and chapter one but margin. This
+   * is the thread beginning: it starts under the frame, on the same left axis
+   * every chapter connector uses, and is drawn downward as the reader leaves
+   * the hero — so the first chapter is arrived at rather than cut to.
+   *
+   * The `--coda` variant is the same line at the other end of the story,
+   * running the gradient the other way: the thread that has descended through
+   * every chapter diffuses into the ground the pager sits on instead of being
+   * deleted by a section boundary.
+   */
+  .story-thread--overture {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 30%,
+      var(--border-strong) 76%,
+      var(--tone) 100%
+    );
+  }
+
+  .story-thread--coda {
+    background: linear-gradient(
+      to bottom,
+      var(--tone) 0%,
+      var(--border-strong) 26%,
+      transparent 88%
+    );
+  }
+
+  /*
+   * Scroll-driven settle, and why it is CSS.
+   *
+   * A chapter heading that holds full contrast forever competes with the
+   * chapter that replaced it. It should recede as it leaves — which is a
+   * scroll-position-driven animation, and the cheapest correct way to express
+   * one is `animation-timeline: view()`: no listener, no rAF, no layout read
+   * per frame, and the work runs off the main thread. The alternative — a
+   * `useScroll` per chapter — is seven scroll subscriptions for an effect
+   * nobody is meant to notice.
+   *
+   * The subject is the chapter *head*, never the chapter. A tall section put on
+   * an exit range would start dimming while its own body was still being read;
+   * a hundred-pixel head leaves the top of the screen and takes its emphasis
+   * with it, which is the actual gesture.
+   *
+   * The range starts at two thirds of the head's pass through the viewport, so
+   * nothing moves until the heading is already in the upper third and on its
+   * way out. Browsers without scroll-driven animations get the static heading,
+   * which is the correct fallback and the reason for the `@supports` — without
+   * it the shorthand would resolve to a zero-length time animation and pin
+   * every heading at its settled state.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .story-head {
+        animation-name: story-head-settle;
+        animation-duration: auto;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: view();
+        animation-range: cover 66% cover 100%;
+      }
+
+      /*
+       * The overture is drawn rather than revealed, on the reader's own scroll:
+       * the line reaches chapter one exactly as chapter one does. It is the
+       * page's one signature transition and the only scroll-linked move added
+       * in this pass.
+       */
+      .story-thread--overture {
+        transform-origin: top;
+        animation-name: story-thread-draw;
+        animation-duration: auto;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: view();
+        animation-range: entry 30% cover 58%;
+      }
+    }
+  }
+
+  @keyframes story-head-settle {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0.38;
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes story-thread-draw {
+    from {
+      transform: scaleY(0);
+      opacity: 0;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+
+  /*
+   * The ground the story comes to rest on.
+   *
+   * The pager used to open on a full-bleed `border-top`, which is a hard cut at
+   * the one place the page least wants one. This is the same separation built
+   * out of light: a hairline that fades out at both ends, over a ground that
+   * arrives gradually from nothing.
+   */
+  .story-resolve {
+    background: linear-gradient(to bottom, transparent 0%, var(--bg-subtle) 34%);
+  }
+
+  /*
+   * The focus viewer's ground.
+   *
+   * Only the background *image* is set here; the opaque layer underneath stays
+   * the utility class on the element (`bg-bg/92`), so this adds a tint rather
+   * than taking over the scrim's colour. `--tone-soft` is already translucent
+   * and already the current act's — it inherits down into the top layer like
+   * any other custom property — which means an enlarged screenshot is lit by
+   * the same wash as the chapter it was opened from, and closing the dialog
+   * puts the reader back in a room they were never taken out of.
+   */
+  .story-scrim {
+    background-image: radial-gradient(88% 64% at 50% 0%, var(--tone-soft) 0%, transparent 70%);
+  }
+
+  .story-resolve::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      var(--border) 22%,
+      var(--border) 78%,
+      transparent 100%
+    );
+  }
+
+  /*
+   * Evidence frames — the screenshots and the cover.
+   *
+   * A hairline of light along the top edge and a hairline of shadow around the
+   * whole, both inside the frame's own radius. It is the smallest amount of
+   * treatment that makes an image read as a physical thing lying on the page
+   * rather than a rectangle cut out of it, and it is a pseudo-element rather
+   * than a `box-shadow` on the frame so it composes with whatever elevation
+   * utility the frame is already carrying instead of replacing it.
+   */
+  .story-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 0 0 1px rgba(26, 22, 20, 0.04);
+  }
+
+  .story-frame--lead::after {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 0 0 1px rgba(26, 22, 20, 0.06);
+  }
+
+  .dark .story-frame::after {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  }
+
+  .dark .story-frame--lead::after {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+  }
+
+  /*
+   * The same story, told with a smaller camera.
+   *
+   * Phones get one light source behind the tension chapter instead of two: the
+   * separation those two were building needs width to be legible, and at 390px
+   * they overlap into a single brighter smear that only costs paint. Everything
+   * else about the act — the wait, the pace, the narrower column, the tone —
+   * survives, so the chapter still reads as the tense one.
+   */
+  @media (max-width: 767px) {
+    .story-plane--tension {
+      background:
+        radial-gradient(95% 80% at 14% 0%, var(--tone-soft) 0%, transparent 62%),
+        linear-gradient(to bottom, var(--bg-subtle) 0%, transparent 84%);
+    }
+  }
+
+  /*
+   * Project identity
+   * ----------------
+   * One project, one visual world.
+   *
+   * `data-identity` is published once on the story's root and again on every
+   * tone anchor inside it, so everything below is composition selected by an
+   * attribute: no extra element, no extra class per project, no branch in any
+   * component. Four motifs, one per project, each applied to the same four
+   * surfaces — the hero field, the chapter plane, the thread that descends
+   * between chapters, and the ground the story resolves onto. That is the
+   * continuous visual thread §6 asks for: the same motif is present at the
+   * opening, through every chapter, under the evidence and at the ending.
+   *
+   * **Nothing in this section animates**, and that is the design rather than a
+   * restriction. The identity is built out of where things sit and how they are
+   * drawn, so a reader on `prefers-reduced-motion` loses the movement elsewhere
+   * on the page and keeps this world intact and complete.
+   *
+   * Every motif is a background image on an `aria-hidden` decorative layer,
+   * which is also why none of them can overflow: a background is clipped to its
+   * own box by definition, so there is no horizontal scrollbar to be had at any
+   * width. And they are gradients rather than assets — no image is downloaded,
+   * duplicated or re-encoded for any of this.
+   *
+   * `base` declares nothing at all. An unlisted project renders exactly the page
+   * that existed before identities did, which is the test this layer has to pass.
+   */
+
+  /*
+   * The hero's motif layer.
+   *
+   * A `::before` rather than a `background-image` on the element itself,
+   * because that element is also `.surface-grid` — the blueprint grid is the
+   * page's, the motif is the project's, and they have to stack rather than one
+   * quietly winning the cascade. The radial mask on the element clips both.
+   */
+  :is(
+    [data-identity="atlas"],
+    [data-identity="beacon"],
+    [data-identity="meridian"],
+    [data-identity="signal"]
+  )
+    .story-hero-field::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Atlas — orbital. Wide concentric shells around a point above the title, so
+     the opening is read from overhead: a thing being surveyed, not approached. */
+  [data-identity="atlas"] .story-hero-field::before {
+    background-image: repeating-radial-gradient(
+      circle at 50% -12%,
+      transparent 0 128px,
+      var(--grid-line) 128px 129px
+    );
+  }
+
+  /* Beacon — modular. One rhythm stated twice: full-height column rules at a
+     fixed pitch, and the same pitch struck again as solid modules along the
+     floor. Geometry that repeats is the whole argument. */
+  [data-identity="beacon"] .story-hero-field::before {
+    background-image:
+      repeating-linear-gradient(to right, var(--grid-line) 0 28px, transparent 28px 112px),
+      repeating-linear-gradient(to right, var(--grid-line) 0 1px, transparent 1px 112px);
+    background-size:
+      100% 3px,
+      100% 100%;
+    background-position:
+      0 100%,
+      0 0;
+    background-repeat: no-repeat;
+  }
+
+  /* Meridian — directional. Every line in the field is travelling the same way,
+     which is the only thing a diagonal has to say. */
+  [data-identity="meridian"] .story-hero-field::before {
+    background-image: repeating-linear-gradient(
+      66deg,
+      transparent 0 78px,
+      var(--grid-line) 78px 79px
+    );
+  }
+
+  /* Signal — a pulse leaving a source. Tight rings from a small origin low on
+     the left, which is what separates it from Atlas: the same shape read as
+     something broadcast rather than something orbited. */
+  [data-identity="signal"] .story-hero-field::before {
+    background-image: repeating-radial-gradient(
+      circle at 12% 86%,
+      transparent 0 54px,
+      var(--grid-line) 54px 55px
+    );
+  }
+
+  /*
+   * The motif carried into every chapter.
+   *
+   * Drawn on the plane that already sits behind the reading column, so a
+   * chapter costs no new element to belong to its project. It paints over the
+   * plane's tone wash and under everything readable, and it is the reason the
+   * evidence chapter looks like the same world as the prose chapters without a
+   * single filter, tint or crop being applied to a screenshot.
+   */
+  :is(
+    [data-identity="atlas"],
+    [data-identity="beacon"],
+    [data-identity="meridian"],
+    [data-identity="signal"]
+  )
+    .story-plane::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background-repeat: no-repeat;
+  }
+
+  [data-identity="atlas"] .story-plane::after {
+    background-image: repeating-radial-gradient(
+      circle at 92% 8%,
+      transparent 0 96px,
+      var(--border) 96px 97px
+    );
+    opacity: 0.35;
+  }
+
+  /* Offset by the plane's own 2rem bleed, so the module rule lands exactly on
+     the chapter's top edge rather than somewhere in the margin above it. */
+  [data-identity="beacon"] .story-plane::after {
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--border-strong) 0 22px,
+      transparent 22px 64px
+    );
+    background-size: 100% 2px;
+    background-position: 0 2rem;
+    opacity: 0.45;
+  }
+
+  [data-identity="meridian"] .story-plane::after {
+    background-image: linear-gradient(74deg, var(--tone-soft) 0%, transparent 34%);
+    opacity: 0.7;
+  }
+
+  [data-identity="signal"] .story-plane::after {
+    background-image: repeating-radial-gradient(
+      circle at 0% 46%,
+      transparent 0 62px,
+      var(--border) 62px 63px
+    );
+    opacity: 0.3;
+  }
+
+  /*
+   * How the descent is drawn.
+   *
+   * The thread is the one element that touches every part of the story — it
+   * leaves the cover image, crosses every chapter gap, and disperses under the
+   * pager — so how it is *drawn* is the cheapest place to carry an identity the
+   * whole way down. A mask rather than a new gradient, so each act keeps the
+   * strength progression it already had and only the texture changes.
+   *
+   * Atlas is deliberately absent here: an orbit is continuous, and a line that
+   * does not break is as much a statement as one that does.
+   */
+  [data-identity="beacon"] .story-thread {
+    mask-image: repeating-linear-gradient(to bottom, black 0 9px, transparent 9px 15px);
+  }
+
+  [data-identity="meridian"] .story-thread {
+    mask-image: repeating-linear-gradient(to bottom, black 0 30px, transparent 30px 34px);
+  }
+
+  [data-identity="signal"] .story-thread {
+    mask-image: repeating-linear-gradient(
+      to bottom,
+      black 0 3px,
+      rgba(0, 0, 0, 0.28) 3px 24px
+    );
+  }
+
+  /*
+   * The ending.
+   *
+   * The pager stands outside the article, so it is handed the identity rather
+   * than inheriting it, and the attribute lands on `.story-resolve` itself. The
+   * motif resolves here and stops — one last statement of the project's shape
+   * under the ground the reader lands on.
+   *
+   * It is a negative-z pseudo-element, which paints above the resolve's own
+   * gradient and below every link in it. The next-project navigation is not
+   * touched, not tinted and not overlaid: it sits on top of this at full
+   * contrast, with its own focus states, exactly as it did.
+   */
+  :is(
+    .story-resolve[data-identity="atlas"],
+    .story-resolve[data-identity="beacon"],
+    .story-resolve[data-identity="meridian"],
+    .story-resolve[data-identity="signal"]
+  )::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-repeat: no-repeat;
+  }
+
+  /* The orbit closes: one wide shell rising from below the page. */
+  .story-resolve[data-identity="atlas"]::after {
+    background-image: repeating-radial-gradient(
+      circle at 50% 118%,
+      transparent 0 104px,
+      var(--border) 104px 105px
+    );
+    opacity: 0.4;
+  }
+
+  /* The same modules the hero stated, struck once more under the hairline. */
+  .story-resolve[data-identity="beacon"]::after {
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--border) 0 22px,
+      transparent 22px 64px
+    );
+    background-size: 100% 2px;
+    background-position: 0 6px;
+    opacity: 0.6;
+  }
+
+  /* Still travelling: the story ends pointing at the next one. */
+  .story-resolve[data-identity="meridian"]::after {
+    background-image: linear-gradient(100deg, var(--tone-soft) 0%, transparent 42%);
+    opacity: 0.8;
+  }
+
+  /* The last pulse, sent from the hairline the thread arrived at. */
+  .story-resolve[data-identity="signal"]::after {
+    background-image: repeating-radial-gradient(
+      circle at 50% 0%,
+      transparent 0 58px,
+      var(--border) 58px 59px
+    );
+    opacity: 0.35;
+  }
+
+  /*
+   * The same identity, told with less of it.
+   *
+   * A phone is not a small desktop: a motif tuned for a 1280px field repeats
+   * five or six times across 390px and stops being a motif. Nothing is hidden —
+   * the hero still opens in the project's world, the thread is still drawn its
+   * own way, and the ending still resolves in it. What goes is density: the
+   * periods widen so the same shape repeats two or three times instead of six,
+   * and the chapter plane drops its layer entirely, because it is the densest
+   * of the four and the most redundant once the thread beside it is already
+   * saying the same thing.
+   */
+  @media (max-width: 767px) {
+    :is(
+      [data-identity="atlas"],
+      [data-identity="beacon"],
+      [data-identity="meridian"],
+      [data-identity="signal"]
+    )
+      .story-plane::after {
+      display: none;
+    }
+
+    [data-identity="meridian"] .story-hero-field::before {
+      background-image: repeating-linear-gradient(
+        66deg,
+        transparent 0 104px,
+        var(--grid-line) 104px 105px
+      );
+    }
+
+    [data-identity="signal"] .story-hero-field::before {
+      background-image: repeating-radial-gradient(
+        circle at 12% 86%,
+        transparent 0 78px,
+        var(--grid-line) 78px 79px
+      );
+    }
+
+    [data-identity="beacon"] .story-hero-field::before {
+      background-image:
+        repeating-linear-gradient(to right, var(--grid-line) 0 28px, transparent 28px 140px),
+        repeating-linear-gradient(to right, var(--grid-line) 0 1px, transparent 1px 140px);
+    }
   }
 
   /* Switch knob — travels when the visually-hidden checkbox is checked. */

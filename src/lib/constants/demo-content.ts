@@ -48,9 +48,13 @@ export function isDemoContentEnabled(): boolean {
  * a data pipeline and a small open-source tool. Between them they exercise every
  * optional field, so the detail template can be reviewed properly.
  *
- * No `featuredImage` or `gallery`: the cards and the case-study header fall back
- * to a generated monogram, which keeps the demo working offline and avoids
- * shipping stock photography that would need an image-host allowlist entry.
+ * No `featuredImage` or `gallery` here: each is fictional, so there is no real
+ * repository for the harvest/stock-photo sources to find anything on. The
+ * public repository layer (`projects-repository.ts`) fills in a generated
+ * cover and a distinct second one at read time — see
+ * `features/repo-imagery/demo-covers.ts` — which keeps the demo working
+ * offline and avoids shipping stock photography that would need an
+ * image-host allowlist entry.
  */
 export const DEMO_PROJECTS: Project[] = [
   {

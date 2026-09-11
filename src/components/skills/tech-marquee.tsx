@@ -100,7 +100,8 @@ export function TechMarquee({
                   tabIndex={duplicate ? -1 : undefined}
                   className={cn(
                     "flex items-center gap-2.5 rounded-full border bg-surface py-2 pr-4 pl-2 shadow-sm",
-                    "transition-[transform,border-color,box-shadow] duration-300 ease-out",
+                    // No easing class: the default is the site's shared curve.
+                    "transition-[transform,border-color,box-shadow] duration-300",
                     "motion-safe:hover:scale-105",
                     active
                       ? "scale-120 border-tone shadow-lg ring-2 ring-tone/30"

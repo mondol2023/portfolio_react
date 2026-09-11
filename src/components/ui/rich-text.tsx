@@ -1,13 +1,15 @@
+import { blockKey, parseRichBlocks } from "@/lib/utils/rich-blocks";
 import { cn } from "@/lib/utils/cn";
 
 /**
  * Long-form text from the CMS.
  *
  * Content is stored as plain text, never HTML — an admin textarea that accepted
- * markup would be a stored-XSS vector on a public page. So the only formatting
- * understood here is what a person types naturally: a blank line starts a new
- * paragraph, and a run of lines beginning with `-` or `*` becomes a list.
- * Everything else is rendered as text by React, which escapes it.
+ * markup would be a stored-XSS vector on a public page. The conventions it does
+ * understand (blank line, `-` list, `>` quotation) live in
+ * `@/lib/utils/rich-blocks`, shared with the case study's animated renderer so
+ * the two cannot disagree about where a block starts. Everything else is
+ * rendered as text by React, which escapes it.
  */
 
 interface RichTextProps {
@@ -15,49 +17,48 @@ interface RichTextProps {
   className?: string;
 }
 
-const BULLET = /^\s*[-*•]\s+/;
-
-/** Splits on blank lines, dropping empty blocks left by trailing newlines. */
-function toBlocks(content: string): string[] {
-  return content
-    .split(/\n\s*\n/)
-    .map((block) => block.trim())
-    .filter(Boolean);
-}
-
 export function RichText({ content, className }: RichTextProps) {
-  const blocks = toBlocks(content);
+  const blocks = parseRichBlocks(content);
   if (blocks.length === 0) return null;
 
   return (
-    <div className={cn("flex flex-col gap-5 text-fg-muted", className)}>
+    // `break-words` is inherited, so one declaration here covers the paragraphs
+    // and the list below: an unbroken URL pasted into a CMS textarea wraps
+    // instead of pushing the page sideways on a narrow screen.
+    <div className={cn("flex flex-col gap-5 break-words text-fg-muted", className)}>
       {blocks.map((block, index) => {
-        const lines = block.split("\n").map((line) => line.trim());
-        const isList = lines.every((line) => BULLET.test(line));
-        const key = `${index}-${block.slice(0, 24)}`;
+        const key = blockKey(block, index);
 
-        if (isList) {
+        if (block.kind === "list") {
           return (
             <ul key={key} className="flex flex-col gap-3">
-              {lines.map((line) => {
-                const item = line.replace(BULLET, "");
-                return (
-                  <li key={item} className="flex gap-3 leading-relaxed">
-                    <span
-                      aria-hidden="true"
-                      className="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent"
-                    />
-                    <span>{item}</span>
-                  </li>
-                );
-              })}
+              {block.items.map((item) => (
+                <li key={item} className="flex gap-3 leading-relaxed">
+                  <span
+                    aria-hidden="true"
+                    className="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent"
+                  />
+                  <span>{item}</span>
+                </li>
+              ))}
             </ul>
+          );
+        }
+
+        if (block.kind === "quote") {
+          return (
+            <blockquote
+              key={key}
+              className="border-l-2 border-tone pl-5 text-fg italic leading-relaxed whitespace-pre-line"
+            >
+              {block.text}
+            </blockquote>
           );
         }
 
         return (
           <p key={key} className="leading-relaxed whitespace-pre-line">
-            {block}
+            {block.text}
           </p>
         );
       })}

@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { ToggleField } from "@/components/ui/toggle-field";
+// Optional feature. Removing it is: delete `src/features/repo-imagery`, this
+// import, the three `useWatch` lines below, and the <RepoImageryPanel> block.
+import { RepoImageryPanel } from "@/features/repo-imagery";
 import {
   createProjectAction,
   updateProjectAction,
@@ -70,6 +73,12 @@ export function ProjectForm({ projectId, initialValues }: ProjectFormProps) {
   });
 
   const submit = useActionSubmit<ProjectInput>(setError);
+
+  // For the repo-imagery panel. `useWatch` rather than `watch()`: the latter
+  // subscribes outside React's knowledge and is what the lint rule objects to.
+  const githubUrl = useWatch({ control, name: "githubUrl" });
+  const featuredImage = useWatch({ control, name: "featuredImage" });
+  const gallery = useWatch({ control, name: "gallery" });
 
   const onSubmit = handleSubmit(async (values) => {
     await submit(
@@ -313,6 +322,18 @@ export function ProjectForm({ projectId, initialValues }: ProjectFormProps) {
             )}
           </Field>
         </FormRow>
+
+        <RepoImageryPanel
+          repoUrl={githubUrl ?? ""}
+          featuredImage={featuredImage ?? ""}
+          gallery={gallery ?? []}
+          onUseCover={(url) =>
+            setValue("featuredImage", url, { shouldValidate: true, shouldDirty: true })
+          }
+          onGalleryChange={(urls) =>
+            setValue("gallery", urls, { shouldValidate: true, shouldDirty: true })
+          }
+        />
       </FormSection>
 
       <FormSection title="Visibility">

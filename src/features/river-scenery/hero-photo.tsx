@@ -12,12 +12,13 @@ const SWITCH_INTERVAL_MS = 9000;
 /**
  * The hero's photographic element(s).
  *
- * Every other section's scenery is procedural (`river-path`, run persistently
- * by `RiverSceneryBackdrop`) — real photos only ever appear here, and only the
- * ones in `settings.heroImageUrls` that point at a host `next/image` is
- * configured to optimise (`isAllowedImageSrc`). That is a deliberate licensing
- * boundary: this component never receives anything but URLs the admin typed
- * in, so it cannot accidentally ship a photo nobody checked the rights on.
+ * Every other section's scenery is procedural (`river-path`, an opt-in
+ * surprise effect — see `@/components/surprise/effects`) — real photos only
+ * ever appear here, and only the ones in `settings.heroImageUrls` that point
+ * at a host `next/image` is configured to optimise (`isAllowedImageSrc`). That
+ * is a deliberate licensing boundary: this component never receives anything
+ * but URLs the admin typed in, so it cannot accidentally ship a photo nobody
+ * checked the rights on.
  *
  * One photo renders statically. Two or more are all mounted at once and
  * cross-fade on a timer — simpler and avoids an image re-fetch (and the

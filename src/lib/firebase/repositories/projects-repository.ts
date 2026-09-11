@@ -4,6 +4,7 @@ import { cache } from "react";
 import { FieldValue, type DocumentData, type DocumentSnapshot } from "firebase-admin/firestore";
 
 import { DEMO_PROJECTS, isDemoContentEnabled } from "@/lib/constants/demo-content";
+import { withDemoCovers } from "@/features/repo-imagery/demo-covers";
 import type { Project, ProjectCaseStudy } from "@/lib/types/content";
 import type { ProjectInput } from "@/lib/validation/project-schema";
 
@@ -80,9 +81,16 @@ function byOrderThenDate(a: Project, b: Project): number {
   return b.startDate.localeCompare(a.startDate);
 }
 
-/** The demo set, or an empty list when the fallback is switched off. */
+/**
+ * The demo set, or an empty list when the fallback is switched off.
+ *
+ * `DEMO_PROJECTS` itself carries no imagery (see its own doc comment) —
+ * `withDemoCovers` fills in a generated primary cover and a distinct
+ * secondary one at read time, so the fallback never renders the
+ * placeholder monogram. See `features/repo-imagery/demo-covers.ts`.
+ */
 function demoProjects(): Project[] {
-  return isDemoContentEnabled() ? DEMO_PROJECTS : [];
+  return isDemoContentEnabled() ? withDemoCovers(DEMO_PROJECTS) : [];
 }
 
 /** Published projects, ordered for the public grid. Falls back to the demo set. */

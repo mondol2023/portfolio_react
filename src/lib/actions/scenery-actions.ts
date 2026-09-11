@@ -1,22 +1,34 @@
 "use server";
 
 import { withAdmin } from "./admin-guard";
-import { actionSuccess, type ActionResult } from "./action-result";
+import { actionError, actionSuccess, type ActionResult } from "./action-result";
 import { revalidateScenery } from "./revalidation";
-import { setLivingRiverEnabled } from "@/lib/firebase/repositories/scenery-repository";
+import { isSiteLayerId } from "@/components/surprise/site-layers";
+import { setSiteLayerEnabled } from "@/lib/firebase/repositories/scenery-repository";
 
 /**
- * Switching the living river on or off.
+ * Switching one of the site's backdrop layers on or off.
  *
- * The argument is a boolean rather than an id, so unlike the animation action
- * there is nothing to validate against a registry — the type is the whole
- * contract, and `withAdmin` is what stops a stranger POSTing to it. Coerced
- * anyway, because a Server Action's arguments arrive over the wire and a
- * client that has been tampered with can send whatever it likes.
+ * A Server Action is a public endpoint, so the id is checked against the
+ * registry here rather than trusted — the same reason `setAnimationEnabledAction`
+ * does it. Without the guard an arbitrary string would become a field name in
+ * `content/scenery`, and nothing downstream would ever read it back out or
+ * clean it up.
+ *
+ * `enabled` is coerced rather than believed for the same reason: the arguments
+ * arrive over the wire from a client that may have been tampered with.
  */
-export async function setLivingRiverEnabledAction(enabled: boolean): Promise<ActionResult> {
+
+const MISSING = "That layer is no longer part of the site.";
+
+export async function setSiteLayerEnabledAction(
+  id: string,
+  enabled: boolean,
+): Promise<ActionResult> {
   return withAdmin(async () => {
-    await setLivingRiverEnabled(enabled === true);
+    if (!isSiteLayerId(id)) return actionError(MISSING);
+
+    await setSiteLayerEnabled(id, enabled === true);
     revalidateScenery();
 
     return actionSuccess();

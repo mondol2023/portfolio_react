@@ -11,9 +11,26 @@
  * a dark variant, and because the animated background cross-fades between them
  * — a transition CSS can only run on registered custom properties, never on
  * values handed over from JavaScript.
+ *
+ * The first six are the home page's sections. The four `story-*` tones are the
+ * stages a case study passes through — opening, tension, structure, resolution
+ * — and exist for the same reason the others do: the backdrop should tell the
+ * reader where in the story they are. They are *stages*, not chapters, so a
+ * seven-chapter case study still only changes its environment four times.
  */
 
-export const SECTION_TONES = ["hero", "about", "stack", "work", "experience", "contact"] as const;
+export const SECTION_TONES = [
+  "hero",
+  "about",
+  "stack",
+  "work",
+  "experience",
+  "contact",
+  "story-open",
+  "story-tension",
+  "story-structure",
+  "story-clarity",
+] as const;
 
 export type SectionTone = (typeof SECTION_TONES)[number];
 

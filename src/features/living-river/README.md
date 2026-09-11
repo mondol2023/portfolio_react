@@ -24,17 +24,41 @@ button rolls that list at random and a full-viewport WebGL scene is not
 something that should ever arrive unannounced on top of another backdrop.
 
 - `lib/firebase/repositories/scenery-repository.ts` reads it (`cache`d per
-  request) and writes it. **Off** is the default and the failure mode: no
-  Firebase, or a thrown query, yields the quieter CSS scene rather than no page.
+  request) and writes it. **On** is the default and the failure mode (Phase 4
+  of `docs/plan.md` promoted it from off): no Firebase, or a thrown query,
+  yields the registry's default state — living river permitted,
+  `section-scenery` off — rather than no page. That default is only ever
+  *permission*, not a guarantee: see "Who actually gets it" below.
 - `lib/actions/scenery-actions.ts` — `withAdmin`-guarded Server Action, then
   `revalidateScenery()`. (Cache Components is off in this project, so that is
   `revalidatePath`, not `cacheTag`.)
-- `components/admin/scenery-toggle.tsx` — its own control on the dashboard,
-  optimistic, `router.refresh()` afterwards.
-- `app/(site)/layout.tsx` picks exactly one backdrop, never both — they would
-  stack on the same `LAYER.backdrop` shelf — and drops `river-path` from the
-  pinned animation list while the living river is on, so the reader cannot end
-  up with two rivers.
+- `components/admin/site-layer-toggles.tsx` — one row in the dashboard's "Site
+  scenery" list, optimistic, `router.refresh()` afterwards. The row declares
+  `conflicts: ["section-scenery"]` in `components/surprise/site-layers.ts`, so
+  switching it on takes the section canvas down in the same write.
+- `app/(site)/layout.tsx` hands both flags to `components/layout/scenery-gate.tsx`
+  rather than picking between them itself — see the next section.
+
+## Who actually gets it
+
+The Firestore flag says the *site* is allowed to show the living river; it
+does not say this *visitor* can run it. `SceneryGate` answers that second
+question, client-side, with `use-eligible.ts`'s
+`useLivingRiverEligible`: a desktop-sized viewport with a pointer that can
+hover (excludes touch tablets a width check alone would not), a real WebGL2
+context — not just the viewport check — obtained the same way the renderer
+itself would, `deviceMemory` read as a supporting signal where the browser
+exposes it, and `prefers-reduced-motion` honoured before any of the above even
+runs. Whenever the answer is "no" — mobile, tablet, no WebGL2, reduced motion,
+a low-memory device, or the admin flag itself is off — `SectionScenery` is
+what renders instead, exactly as if `section-scenery` had been the one turned
+on: this is the fallback for all of those cases, not only the admin's kill
+switch. The heavy renderer is also `next/dynamic`-loaded from `SceneryGate`
+with `ssr: false`, so none of its JS reaches a visitor the check above turns
+away. A second, narrower version of the same WebGL2 probe runs again in
+`living-river-backdrop.tsx` immediately before the real mount; failing it
+falls back to `SectionScenery` the same way, for the rarer case where the
+answer changes in the moment between the two checks.
 
 ## How it is put together
 

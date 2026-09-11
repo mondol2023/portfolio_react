@@ -1,44 +1,55 @@
-import Image from "next/image";
-
-import { StaggerItem, Stagger } from "@/components/motion/stagger";
 import { isAllowedImageSrc } from "@/lib/constants/images";
+import { DEFAULT_IDENTITY, type ProjectIdentity } from "@/lib/constants/project-identity";
+
+import { EvidenceExhibition } from "./evidence-exhibition";
+import type { EvidenceItem } from "./evidence-viewer";
 
 /**
- * Screenshot gallery.
+ * The evidence chapter's screenshots.
  *
- * A server component with no lightbox: the images are already rendered at a
- * useful size, and shipping a modal viewer to every visitor to occasionally
- * enlarge one is not a trade worth making. Sources that are not on the image
+ * This stays a server component and does one job: turn the stored gallery into
+ * the list of exhibits worth hanging. Sources that are not on the image
  * allowlist are dropped rather than rendered, so a bad URL in the CMS cannot
- * fail the page.
+ * fail the page, and a project whose whole gallery is unusable renders no
+ * chapter at all instead of an empty one.
+ *
+ * The numbering is assigned after filtering, so the exhibits read 01, 02, 03
+ * with no gaps where a rejected URL used to be — a reader referring to "03"
+ * and an editor counting rows should land on the same picture.
+ *
+ * Everything visual — hierarchy, assembly, inspection — lives in
+ * `EvidenceExhibition`, which is the client half. The split is deliberate: the
+ * allowlist check and the exhibit list are decided once on the server and
+ * shipped as data, not as a filter that runs again in every browser.
+ *
+ * No captions are invented here. `Project.gallery` is a list of URLs and
+ * nothing more, so the only text under a frame is its exhibit number and the
+ * affordance that opens it. The day the schema carries a caption, it arrives as
+ * a field on `EvidenceItem` and the layout already has the line to put it on.
  */
 
-export function ProjectGallery({ images, title }: { images: string[]; title: string }) {
-  const valid = images.filter(isAllowedImageSrc);
-  if (valid.length === 0) return null;
+export function ProjectGallery({
+  images,
+  title,
+  context,
+  identity = DEFAULT_IDENTITY,
+}: {
+  images: string[];
+  title: string;
+  /** The chapter this sits in, carried into the viewer so context survives. */
+  context?: string;
+  /** Forwarded untouched: it decides the order a row assembles in, nothing else. */
+  identity?: ProjectIdentity;
+}) {
+  const items: EvidenceItem[] = images.filter(isAllowedImageSrc).map((src, index) => ({
+    src,
+    alt: `${title} — screenshot ${index + 1}`,
+    number: String(index + 1).padStart(2, "0"),
+  }));
+
+  if (items.length === 0) return null;
 
   return (
-    <Stagger
-      as="ul"
-      step={0.06}
-      className="grid gap-4 sm:grid-cols-2"
-    >
-      {valid.map((src, index) => (
-        <StaggerItem
-          as="li"
-          key={src}
-          className="relative aspect-[16/10] overflow-hidden rounded-card border border-border bg-bg-subtle"
-        >
-          <Image
-            src={src}
-            alt={`${title} — screenshot ${index + 1}`}
-            fill
-            loading="lazy"
-            sizes="(min-width: 640px) 45vw, 100vw"
-            className="object-cover"
-          />
-        </StaggerItem>
-      ))}
-    </Stagger>
+    <EvidenceExhibition items={items} title={title} context={context} identity={identity} />
   );
 }

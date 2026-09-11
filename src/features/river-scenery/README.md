@@ -13,18 +13,12 @@ one folder, so debugging it never means hunting across `components/layout`,
   (`river-path/palette.ts`) as `--t` tracks page scroll progress
   (`river-path/scroll-progress.ts`).
 
-  It is consumed two ways:
-  1. as the opt-in "surprise" easter egg, via
-     `@/components/surprise/effects/index.ts` (`riverPath`);
-  2. as the site's persistent backdrop, via `river-scenery-backdrop.tsx` below.
-
-- **`river-scenery-backdrop.tsx`** — runs `river-path` unconditionally for the
-  life of the public shell, mounted once in `app/(site)/layout.tsx` alongside
-  `<AmbientBackground />` (not replacing it: `river-path` composites at
-  `LAYER.backdrop` (-8), above `.ambient`'s -10, so the section-tone colour
-  and light/dark rays-or-stars toggle keep working underneath the scene).
-  Reduced motion drops it outright, via `useMotionPreference()`, the same rule
-  `SiteAnimations` applies to every `animated` effect.
+  It is consumed as the opt-in "surprise" easter egg, via
+  `@/components/surprise/effects/index.ts` (`riverPath`). It used to also run
+  unconditionally as the site's persistent backdrop, via
+  `river-scenery-backdrop.tsx`; that component was removed (Phase 3 of
+  `docs/plan.md`) once `living-river` superseded it — `river-path` is opt-in
+  only now.
 
 - **`hero-photo.tsx`** — the Hero's photographic element (the non-CSS scene,
   per the hybrid approach): one or more `next/image fill` layers reading

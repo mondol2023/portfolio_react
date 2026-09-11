@@ -3,6 +3,12 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { SectionScenery } from "@/features/section-scenery";
+import {
+  DEFAULT_IDENTITY,
+  isProjectIdentity,
+  type ProjectIdentity,
+} from "@/lib/constants/project-identity";
 import { DEFAULT_TONE, isSectionTone, type SectionTone } from "@/lib/constants/section-tone";
 
 /**
@@ -21,17 +27,46 @@ import { DEFAULT_TONE, isSectionTone, type SectionTone } from "@/lib/constants/s
  *    `--tone` / `--tone-soft` properties cross-fade to it over ~900ms. The
  *    background is therefore tinted by wherever the reader currently is.
  *
+ * 3. **Section scenery.** The same resolved tone is handed to `SectionScenery`,
+ *    a canvas layer that draws a *different animation* per section rather than
+ *    a recolour of one. It takes the tone as a prop precisely so the observer
+ *    below stays the single answer to "which section is the reader looking at"
+ *    — including the stale-route guard, which is easy to get wrong twice.
+ *
+ * 4. **Project identity.** A case study publishes `data-identity` on the very
+ *    elements that already carry `data-tone-anchor`, so the observer below
+ *    reads it off the same `current` element in the same callback and hands it
+ *    to the same canvas. Which project's room it is therefore costs nothing —
+ *    no second observer, no second listener, no extra work per scroll. Anything
+ *    without the attribute resolves to `base`, which is today's composition.
+ *
  * The observer's `rootMargin` collapses the root down to a thin band across the
  * viewport's middle, so "current section" means "the one under the reader's
  * eyeline", not "the one that happens to be tallest".
+ *
+ * The glow and the scenery are switched independently from the dashboard, but
+ * the observer runs either way: it is what resolves `data-tone`, which both
+ * halves consume, and it is cheap. Only the rendering is conditional — turning
+ * a half off must not change what the other half is told about the page.
  */
 
 /** Only the middle 10% of the viewport counts as "here". */
 const MIDDLE_BAND = "-45% 0px -45% 0px";
 
-export function AmbientBackground() {
+interface AmbientBackgroundProps {
+  /** The drifting colour fields, rays and stars. */
+  glow?: boolean;
+  /** The per-section canvas. */
+  scenery?: boolean;
+}
+
+export function AmbientBackground({ glow = true, scenery = true }: AmbientBackgroundProps) {
   const pathname = usePathname();
-  const [resolved, setResolved] = useState<{ path: string; tone: SectionTone } | null>(null);
+  const [resolved, setResolved] = useState<{
+    path: string;
+    tone: SectionTone;
+    identity: ProjectIdentity;
+  } | null>(null);
 
   /*
    * The observed tone is stored with the route it came from and compared during
@@ -39,8 +74,13 @@ export function AmbientBackground() {
    * anchor on the page, and the stale route's colour would otherwise sit on the
    * backdrop until the new observer had something to report — or forever, on a
    * route with no toned sections at all.
+   *
+   * The identity is stored in the same object and guarded by the same
+   * comparison, so leaving a project cannot leave its scene behind either.
    */
-  const tone = resolved?.path === pathname ? resolved.tone : DEFAULT_TONE;
+  const fresh = resolved?.path === pathname ? resolved : null;
+  const tone = fresh?.tone ?? DEFAULT_TONE;
+  const identity = fresh?.identity ?? DEFAULT_IDENTITY;
 
   useEffect(() => {
     const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-tone-anchor]"));
@@ -60,7 +100,15 @@ export function AmbientBackground() {
         // No match means the reader is between sections; holding the last tone
         // is calmer than snapping back to the default and out again.
         if (current && isSectionTone(current.dataset.tone)) {
-          setResolved({ path: pathname, tone: current.dataset.tone });
+          // Read from the same element in the same pass. A section that does not
+          // belong to a project simply has no `data-identity`, and `base` is the
+          // composition the site had before identities existed.
+          const next = current.dataset.identity;
+          setResolved({
+            path: pathname,
+            tone: current.dataset.tone,
+            identity: isProjectIdentity(next) ? next : DEFAULT_IDENTITY,
+          });
         }
       },
       { rootMargin: MIDDLE_BAND, threshold: 0 },
@@ -72,11 +120,18 @@ export function AmbientBackground() {
 
   return (
     <div aria-hidden="true" className="ambient" data-tone={tone}>
-      <div className="ambient-blob ambient-blob-a" />
-      <div className="ambient-blob ambient-blob-b" />
-      <div className="ambient-blob ambient-blob-c" />
-      <div className="ambient-rays" />
-      <div className="ambient-stars" />
+      {/* First child, so the CSS layers below stay on top of the canvas and the
+          scenery reads as depth behind them rather than a pane over them. */}
+      {scenery ? <SectionScenery tone={tone} identity={identity} /> : null}
+      {glow ? (
+        <>
+          <div className="ambient-blob ambient-blob-a" />
+          <div className="ambient-blob ambient-blob-b" />
+          <div className="ambient-blob ambient-blob-c" />
+          <div className="ambient-rays" />
+          <div className="ambient-stars" />
+        </>
+      ) : null}
     </div>
   );
 }

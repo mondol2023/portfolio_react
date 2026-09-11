@@ -11,9 +11,10 @@ import {
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AnimationToggles } from "@/components/admin/animation-toggles";
 import { VisitorsPanel } from "@/components/admin/analytics/visitors-panel";
-import { SceneryToggle } from "@/components/admin/scenery-toggle";
+import { SiteLayerToggles } from "@/components/admin/site-layer-toggles";
 import { StatCard } from "@/components/admin/stat-card";
 import { ANIMATION_GROUPS } from "@/components/surprise/catalog";
+import { SITE_LAYERS, conflictsWith } from "@/components/surprise/site-layers";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,7 +22,7 @@ import { getEnabledAnimations } from "@/lib/firebase/repositories/animations-rep
 import { getExperiences } from "@/lib/firebase/repositories/experience-repository";
 import { getMessages, getUnreadMessageCount } from "@/lib/firebase/repositories/messages-repository";
 import { getAllProjects } from "@/lib/firebase/repositories/projects-repository";
-import { getLivingRiverEnabled } from "@/lib/firebase/repositories/scenery-repository";
+import { getSiteLayers } from "@/lib/firebase/repositories/scenery-repository";
 import { getAllSkills } from "@/lib/firebase/repositories/skills-repository";
 import { parseSearchField } from "@/lib/analytics/search";
 import { formatFullDate } from "@/lib/utils/dates";
@@ -39,7 +40,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
   const { q, field } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
 
-  const [projects, experiences, skills, messages, unreadCount, animations, livingRiver] =
+  const [projects, experiences, skills, messages, unreadCount, animations, layers] =
     await Promise.all([
       getAllProjects(),
       getExperiences(),
@@ -47,7 +48,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
       getMessages(RECENT_LIMIT),
       getUnreadMessageCount(),
       getEnabledAnimations(),
-      getLivingRiverEnabled(),
+      getSiteLayers(),
     ]);
 
   const publishedCount = projects.filter((project) => project.published).length;
@@ -62,6 +63,16 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
   const animationGroups = ANIMATION_GROUPS.map((group) => ({
     label: group.label,
     items: group.items.map(({ id, name, description }) => ({ id, name, description })),
+  }));
+
+  // Same narrowing, same reason: the layer registry is metadata already, but the
+  // conflict graph is resolved here so the client never has to walk it.
+  const layerRows = SITE_LAYERS.map(({ id, name, description, note }) => ({
+    id,
+    name,
+    description,
+    ...(note ? { note } : {}),
+    conflicts: conflictsWith(id),
   }));
 
   return (
@@ -217,6 +228,26 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
       <VisitorsPanel query={query} field={parseSearchField(field)} />
 
       <section
+        aria-labelledby="site-scenery"
+        className="mt-8 rounded-card border border-border bg-surface"
+      >
+        <div className="border-b border-border px-5 py-4">
+          <h2 id="site-scenery" className="text-sm font-semibold text-fg">
+            Site scenery
+          </h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-fg-subtle">
+            The layers the site is built out of, rather than things worn on top of it. These
+            composite — several can be on at once and they stack back to front — except where a row
+            says otherwise, and switching on a row that conflicts takes the other one down for you.
+            Most start on, so an untouched site looks complete. Everything here is skipped for
+            visitors who have asked for reduced motion.
+          </p>
+        </div>
+
+        <SiteLayerToggles rows={layerRows} state={layers} />
+      </section>
+
+      <section
         aria-labelledby="site-animations"
         className="mt-8 rounded-card border border-border bg-surface"
       >
@@ -234,25 +265,6 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
         </div>
 
         <AnimationToggles groups={animationGroups} enabled={animations} />
-      </section>
-
-      <section
-        aria-labelledby="site-scenery"
-        className="mt-8 rounded-card border border-border bg-surface"
-      >
-        <div className="border-b border-border px-5 py-4">
-          <h2 id="site-scenery" className="text-sm font-semibold text-fg">
-            Backdrop scene
-          </h2>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-fg-subtle">
-            The river behind the whole site. It has its own switch rather than
-            sitting in the list above because there can only ever be one of it:
-            both scenes draw on the same layer, so turning this on takes the
-            painted one down.
-          </p>
-        </div>
-
-        <SceneryToggle enabled={livingRiver} />
       </section>
 
       <section aria-labelledby="quick-edits" className="mt-8">

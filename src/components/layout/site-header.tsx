@@ -50,7 +50,7 @@ export function SiteHeader({ name }: SiteHeaderProps) {
             "flex items-center justify-between gap-4 rounded-full border px-3 py-2 transition-[background-color,border-color,box-shadow] duration-300 sm:px-4",
             isAtTop
               ? "border-transparent bg-transparent"
-              : "border-border bg-surface/80 shadow-sm backdrop-blur-xl",
+              : "border-border bg-surface/92 shadow-sm backdrop-blur-xl",
           )}
         >
           <Link

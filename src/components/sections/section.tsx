@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 import { ScrollVeil } from "@/components/motion/scroll-veil";
 import type { SectionTone } from "@/lib/constants/section-tone";
 import { cn } from "@/lib/utils/cn";
-import { BombIntro } from '../motion/bomb-intro';
-
 
 /**
  * Landmark wrapper for every public section.

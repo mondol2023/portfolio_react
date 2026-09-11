@@ -78,7 +78,7 @@ const CSS = `
      * geometry needs a frame loop.
      */
     opacity: var(--tilt-k, 0);
-    transition: opacity 260ms ease;
+    transition: opacity 260ms var(--ease-site);
 
     background: radial-gradient(
       18rem circle at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
@@ -122,6 +122,17 @@ export const cardTilt: SurpriseEffect = {
      */
     const live = new Map<HTMLElement, Tilt>();
     let hovered: HTMLElement | null = null;
+    /**
+     * The card currently carrying `data-card-tilt`.
+     *
+     * The attribute is what hands transform ownership from the card's own
+     * hover rule to this effect, and it is stamped in the same task as the
+     * `:hover` that starts that rule — never a frame later. Stamped late, the
+     * card spends one frame animating its hover `translateY` under a 300ms
+     * transition and then has that transition yanked out from under it, which
+     * lands as a visible snap on the first pixel of pointer travel.
+     */
+    let stamped: HTMLElement | null = null;
 
     /** Last pointer position, kept so a scroll can re-aim without a pointer move. */
     let pointerX = -1;
@@ -137,6 +148,22 @@ export const cardTilt: SurpriseEffect = {
       element.style.removeProperty("--tilt-k");
       element.style.removeProperty("--tilt-gx");
       element.style.removeProperty("--tilt-gy");
+    };
+
+    /**
+     * Marks the card the pointer is on. Cheap enough for the input path:
+     * an attribute write and, at most, one `rest()` — no measurement.
+     *
+     * A card being *left* keeps its attribute until it has eased back to flat,
+     * because it is still being transformed; `step` drops it at that point.
+     * One that was stamped but never started leaning has nothing to ease, so
+     * it is cleared here instead of being stranded with the attribute on.
+     */
+    const stampCard = (card: HTMLElement | null) => {
+      if (card === stamped) return;
+      if (stamped && !live.has(stamped)) rest(stamped);
+      stamped = card;
+      card?.setAttribute("data-card-tilt", "");
     };
 
     /*
@@ -161,6 +188,10 @@ export const cardTilt: SurpriseEffect = {
       }
 
       hovered = card instanceof HTMLElement ? card : null;
+      // Scrolling under a still pointer can slide a different card under it
+      // without any boundary event firing, so the frame re-stamps too. Both
+      // paths are no-ops when the card has not actually changed.
+      stampCard(hovered);
       if (!hovered) return;
 
       const box = hovered.getBoundingClientRect();
@@ -174,7 +205,6 @@ export const cardTilt: SurpriseEffect = {
       if (!tilt) {
         tilt = { rx: 0, ry: 0, k: 0, targetRx: 0, targetRy: 0, targetK: 0 };
         live.set(hovered, tilt);
-        hovered.setAttribute("data-card-tilt", "");
       }
 
       // Pointer above centre tips the top edge away, so `rotateX` follows the
@@ -184,9 +214,12 @@ export const cardTilt: SurpriseEffect = {
       tilt.targetK = 1;
 
       // The light sits under the pointer and needs no easing of its own — it
-      // is a soft gradient, and lagging it would read as a smear.
-      hovered.style.setProperty("--tilt-gx", `${(px + 0.5) * 100}%`);
-      hovered.style.setProperty("--tilt-gy", `${(py + 0.5) * 100}%`);
+      // is a soft gradient, and lagging it would read as a smear. Rounded to
+      // one decimal: this is the position of an 18rem blur, so the digits past
+      // it are sub-pixel, and they are a longer string to build and parse on
+      // every frame of every pointer move.
+      hovered.style.setProperty("--tilt-gx", `${((px + 0.5) * 100).toFixed(1)}%`);
+      hovered.style.setProperty("--tilt-gy", `${((py + 0.5) * 100).toFixed(1)}%`);
     };
 
     const step = () => {
@@ -237,6 +270,26 @@ export const cardTilt: SurpriseEffect = {
       wake();
     };
 
+    /*
+     * Delegated, and the only reason a second pointer listener exists: this is
+     * the same task that flips `:hover`, so the attribute — and with it the
+     * transform ownership — changes in the same style recalculation as the
+     * hover rule it overrides. Doing it from the frame instead lets one frame
+     * of the card's own 300ms hover lift start, then rips its transition away
+     * mid-tween, which is visible as a snap on the first pixel of travel.
+     *
+     * `pointerover` fires once per boundary crossing rather than per move, and
+     * the handler does an attribute write and a `closest()` walk — no
+     * measurement. That stays in the frame, where it belongs.
+     */
+    const onOver = (event: PointerEvent) => {
+      const target = event.target;
+      const card = target instanceof Element ? target.closest(CARD_SELECTOR) : null;
+      if (card === stamped) return;
+      stampCard(card instanceof HTMLElement ? card : null);
+      wake();
+    };
+
     // Scrolling under a held pointer moves the card without firing a
     // `pointermove`, which would otherwise leave the tilt aimed at where the
     // card used to be.
@@ -255,16 +308,23 @@ export const cardTilt: SurpriseEffect = {
 
     window.addEventListener("pointermove", onMove, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("pointerover", onOver, { passive: true });
     document.addEventListener("pointerout", onOut, { passive: true });
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("pointerover", onOver);
       document.removeEventListener("pointerout", onOut);
 
       for (const element of live.keys()) rest(element);
       live.clear();
+
+      // The card under the pointer may have been marked without a frame having
+      // run yet, in which case it is not in `live` and the loop above missed it.
+      if (stamped) rest(stamped);
+      stamped = null;
 
       removeStyle();
     };

@@ -205,7 +205,7 @@ export function SurpriseButton({ className, pinned }: SurpriseButtonProps) {
           className={cn(
             "max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-border bg-surface/90",
             "px-3.5 py-1.5 text-right text-xs font-medium text-fg shadow-md backdrop-blur",
-            "transition-[opacity,transform] duration-300 ease-out",
+            "transition-[opacity,transform] duration-300",
             note ? "opacity-100" : "pointer-events-none translate-y-1 opacity-0",
           )}
         >
