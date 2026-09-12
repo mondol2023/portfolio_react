@@ -3,7 +3,7 @@
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import { useSceneContentStore } from "@/lib/store/scene-content-store";
 
-import { sceneSectionProgress } from "../scene/camera-rig";
+import { sceneSectionEnvelope } from "../scene/camera-rig";
 import { SkillGalaxy } from "../objects/skill-galaxy";
 
 interface SkillsSceneProps {
@@ -23,11 +23,9 @@ interface SkillsSceneProps {
  */
 export function SkillsScene({ tone, toneSoft, reducedMotion, progress, budget, pointer }: SkillsSceneProps) {
   const skills = useSceneContentStore((state) => state.skills);
-  // Index 1 (About → Skills) is this section's own entrance span; index 2
-  // (Skills → Experience) is its exit — the same "entry uses the previous
-  // waypoint, exit uses this one" pattern About already established.
-  const entryProgress = sceneSectionProgress(progress, 1);
-  const exitProgress = sceneSectionProgress(progress, 2);
+  // Waypoint index 2 — About → Skills is the entrance span, Skills →
+  // Experience the exit, with a dwell between the two.
+  const { entry, exit } = sceneSectionEnvelope(progress, 2);
 
   if (skills.length === 0) return null;
 
@@ -39,8 +37,8 @@ export function SkillsScene({ tone, toneSoft, reducedMotion, progress, budget, p
       reducedMotion={reducedMotion}
       budget={budget}
       pointer={pointer}
-      entryProgress={entryProgress}
-      exitProgress={exitProgress}
+      entryProgress={entry}
+      exitProgress={exit}
     />
   );
 }

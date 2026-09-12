@@ -429,6 +429,217 @@ file). Strict TypeScript, no `any`.
       `three-scene` master switch both fall back to the plain DOM site with
       nothing missing.
 
+- [x] **Phase 11 — Projects-first refinement pass: colour bridge, lens, dwell,
+      and the gallery corridor.** A focused pass taking the Projects scene as
+      the anchor and lifting animation, interaction, design, lighting and
+      camera framing around it. Two pre-existing defects surfaced first, and
+      both are fixed at the root rather than worked around.
+
+      **Defect 1 — the colour bridge was collapsing.** `use-css-colors.ts`'s
+      `normalise()` matches `rgba?(...)` but destructures only `[r, g, b]`, so
+      `--tone-soft`'s alpha (`rgba(190,18,60,0.12)`) was silently dropped and
+      `toneSoft` resolved to the *same saturated hex* as `tone`. Fog, ambient
+      light and fill light were therefore all being fed a full-strength accent
+      — the reason the scene read as a single tinted wash rather than a lit
+      space. Rather than teach the shared hook about alpha (its DOM-side
+      callers rely on the current behaviour), `scene-root.tsx` now reads
+      `["--tone", "--bg"]` and a new
+      [lib/experience/scene-palette.ts](src/lib/experience/scene-palette.ts)
+      derives the whole scene palette from those two honest values:
+      `buildScenePalette(tone, background)` → `{ accent, wash, atmosphere,
+      key, fill, surface, deep, dark }`, with light/dark inferred from the
+      page's own luminance instead of a second theme subscription. It imports
+      nothing from `three` on purpose — `scene-root.tsx` is *not* code-split,
+      so a `THREE.Color` there would pull the whole library into the
+      first-load bundle and undo Phase 1's boundary. `buildScenePalette` is
+      called inside `scene-canvas.tsx` (the split side) and memoised on
+      `[tone, background]`, since `progress` re-renders that component on
+      every scroll event.
+
+      **Defect 2 — `transmission` with nothing to transmit.** The old project
+      panels used `meshPhysicalMaterial` + `transmission`, which forces three
+      into an extra full render of the scene *per panel per frame*, and with
+      no environment map mounted there was nothing for it to refract. Five
+      panels meant five hidden extra passes for an effect that could not be
+      seen. Removed outright; everything in the corridor is
+      `meshStandardMaterial` now.
+
+      **New shared vocabulary.** Frame-loop motion is a third case alongside
+      DOM `variants.ts` (declarative) and `springs.ts` (spring constants), so
+      [lib/experience/scene-motion.ts](src/lib/experience/scene-motion.ts)
+      names it once instead of letting each object re-derive it: a
+      `SCENE_SMOOTHING` scale (`snap` → `cinematic`), frame-rate-independent
+      `damp()`/`dampFactor()` (`1 - pow(smoothing, delta)`), a real
+      damped-spring integrator `springStep()` that reuses the existing named
+      `SPRING` constants rather than inventing a second set, the three eases
+      the scene actually uses, and `stagger()` for index-offset waves.
+      [three/scene/geometry.ts](src/three/scene/geometry.ts) adds
+      `roundedSlabGeometry()` (bevelled extrude — a slab with a hard 90°
+      silhouette edge cannot catch a highlight, which is most of why the old
+      panels read as flat rectangles) and a module-cached `glowTexture()`.
+
+      **Camera: a lens, and a middle.** `Waypoint` now carries `fov`, lerped
+      along the path and damped per frame (projection matrix rebuilt only past
+      a 0.01° delta). The lens tightens to 43° at Projects, where the corridor
+      wants compression, and opens to 51° at Contact, where the scene lets go
+      — inside the spec's 40–55° band, and slow enough across a whole section
+      to read as mood, never as a zoom. Span interpolation is eased
+      (`easeInOutSine`) instead of linear, so the camera arrives and departs
+      rather than conveyor-belting. Pointer parallax now rides *on top of* the
+      path (damped, decaying to centre on pointer-leave) with the lookAt
+      target counter-rotating at 0.25×, so the cursor swings the camera around
+      the subject instead of panning off it. New `sceneSectionEnvelope(
+      progress, index)` fixes a structural problem in the old scroll mapping:
+      read straight off the path, a section's entrance completed at the exact
+      instant its exit began, so no section was ever simply *there*. Entrances
+      now finish inside the first 72% of their span and exits hold until 28%
+      into the next, buying every section a plateau — the "moments of calm"
+      half of `calm → build → peak → release → calm`. `about`, `skills`,
+      `experience`, `projects` and `contact` scenes all read the envelope;
+      `hero-scene.tsx` keeps raw `sceneSectionProgress` for its rotation (its
+      sculpture deliberately lives one span longer) but takes its exit from
+      the envelope.
+
+      **Lighting.** Rebuilt around the palette as a three-point rig plus a
+      rim: ambient from `palette.wash` (0.22 dark / 0.58 light — light themes
+      need the lift, dark themes need the restraint), a key directional in
+      `palette.key` (a warm near-white, not the accent) that owns the shadow
+      map at 2048² with a bounded ortho frustum, a cool `palette.fill`
+      opposite it at roughly a fifth of key, and an accent rim from behind to
+      separate geometry from the fog. Shadow casting stays gated on
+      `budget.shadows`.
+
+      **Environment.** Fog now fades toward `palette.atmosphere` (the real
+      page background) rather than the accent, so depth reads as distance
+      instead of tint. The dust field, previously static, drifts on
+      `clock.elapsedTime` with an independent slow size swell, sits in a
+      flattened `sphericalCloud`, and switches blending mode by theme —
+      additive on dark, normal on light, where additive would only wash out.
+
+      **Projects — the gallery corridor.** The old composition was a centred
+      fan, which was invisible in practice: `container-page` is 76rem wide and
+      `ProjectCard` is opaque `bg-surface`, so the whole deck sat behind the
+      card grid. The corridor instead lives in the page's side gutters and on
+      the depth axis, framing the content rather than fighting it. The same
+      project the DOM grid gives `emphasis` becomes a lead monolith at the
+      vanishing point; the rest mount alternating left/right walls that flare
+      outward and recede in depth. The authored moment: panels rest **flush
+      with their wall**, edge-on, showing only an emissive leading edge, and
+      swing open toward the camera in a near-to-far wave as the section
+      arrives (`stagger`, 0.55 overlap); leaving swings them shut while the
+      corridor keeps gliding, so the exit is a gesture rather than a fade.
+      Hover is screen-space — the canvas is `pointer-events-none` at
+      `z-index:-8` and can never raycast, so each panel projects its own world
+      position to NDC and compares against the shared pointer, the idiom
+      `skill-galaxy.tsx` established — driving lift along local +Z, extra yaw
+      and emissive gain, each damped independently. Whole-corridor sway runs
+      through `springStep` on the existing `SPRING.panel`. Panel colour now
+      varies only in lightness and chroma inside the accent hue; the previous
+      `hashString(project.type)` hue rotation was a direct violation of the
+      "no rainbow, no nightclub colour cycling" rule above and is gone. All
+      six geometries are built once in a `useMemo`, shared via `geometry={}`
+      with `dispose={null}`, and disposed explicitly on unmount. A
+      section-local point light travels with the corridor, and an additive
+      sprite behind the monolith stands in for bloom — this plan forbids
+      adding a dependency for an effect the stack can already express, and a
+      postprocessing pass for one glow is exactly that. Panel count is
+      tier-capped (2 / 3 / 6) and the whole root early-outs to
+      `visible = false` outside its envelope.
+
+      Reduced motion keeps its contract throughout: no pointer response, no
+      continuous drift, and every element still lands in its final open pose.
+      Verification: `next build` compiles successfully (8.9s, Turbopack);
+      `tsc --noEmit` reproduces exactly the same 16 pre-existing errors
+      documented in Phases 9–10 and no new ones; the Impeccable mechanical
+      detector, run once over all ten changed/added files, reports zero
+      findings.
+
+- [x] **Phase 12 — Cinematic corridor polish: composition measured from the
+      rendered page.** Phase 11 built the corridor correctly and aimed it
+      wrongly. Inspected first in a real browser over the Chrome DevTools
+      Protocol at 1440×900, 1024×820 and 390×844 before a single number
+      was touched, and the screenshots settled the argument: at the plateau
+      exactly *one* panel was visible — a crimson rectangle clipped behind
+      the left project card — and the lead monolith was entirely hidden
+      behind the opaque card grid. The only empty pixels on the page were
+      the two side gutters, measured at 112 | 1216 | 112 at 1440 and zero at
+      1024 and below.
+
+      **Panels are now placed in screen fractions, not world units.** A slab
+      at a fixed world x sweeps sideways whenever the camera dollies or the
+      lens changes, which is why panels were landing under the cards. Each
+      frame the corridor reads the live camera — `halfH = tan(fov/2)·depth`,
+      `halfW = halfH·aspect` — and places every slab at a *fraction* of the
+      frame half-width, so it holds its column in the page's gutter at any
+      viewport and any focal length, and the z-dolly reads as the panel
+      growing rather than drifting. The content-safe fraction is derived from
+      the real layout constants (`CONTENT_MAX_PX = 1216`, the 76rem container;
+      `CONTENT_PAD_PX = 40`, capped at 5vw), giving 0.789 at 1440 and ~0.92 at
+      1024 — the 3D can never overlap the text column because it is told
+      where the text column is.
+
+      **The vanishing point is vertical.** A 152px gutter has no room for
+      horizontal convergence, so depth is carried by four cues stacked
+      together: the rake toward the eyeline (`lift = LIFT_NEAR ·
+      LIFT_FALLOFF^i` → 0.34 / 0.21 / 0.13), shrinking scale, opacity
+      falling off with distance (`FAR_DIM`), and a per-slab lightness ramp
+      that walks the near slab dark and the far ones pale so they meet the
+      fog instead of ending at it. Hue is fixed across the whole rake — the
+      no-rainbow rule holds; only lightness and chroma move.
+
+      **The lead project became the end of the corridor.** Anything opaque
+      behind the Projects heading or standfirst destroys dark-text-on-light
+      contrast, so the monolith is no longer a centred slab. It is a broad
+      low end wall — wider than the frame (`PORTAL_FRAC 1.1`), seated below
+      the eyeline — built from two unit planes scaled per frame, a mass and
+      an accent plate grown by a fixed world margin so the lit border stays
+      an even line at every distance. Centrally it sits under the card grid;
+      in the gutters its lit top edge crosses the frame as the one horizontal
+      the composition leads to, and during entrance and exit, before the
+      cards arrive, it is fully visible. It approaches on entry and recedes
+      on exit rather than fading out.
+
+      **Entrance is four beats read off the shared ramp**, via a local
+      `phase(t, from, to)` helper (not a duplicate of `scene-motion` — it
+      slices the ramp that file already produces): corridor depth resolves
+      (0→0.62), the end wall establishes the focal point (0.16→0.74),
+      side panels open near-to-far through the existing `stagger()`
+      (0.3→1), then lighting and idle life settle (0.55→1) into a plateau
+      where nothing initiates. Exit reverses the same spatial logic with the
+      same stagger, shortened to `EXIT_SPAN = 0.3` because the shared
+      envelope would otherwise leave panels standing over Experience's first
+      screen — the corridor is left behind, not switched off.
+
+      Camera: the waypoint system is untouched. Projects' waypoint lifts its
+      eyeline under 1.5° (`lookAt` y 0.02 → 0.16, position y 0.12 → 0.06) so
+      the end wall's lit edge lands where the eye already is; the 43° lens
+      stays. Fog tightened to 7.5–25 so the near slab is untouched, mid slabs
+      lose a third to page colour and the end wall arrives half dissolved.
+      Lighting: light-theme fill 0.24 → 0.3 and rim 0.5 → 0.64, because a dark
+      slab on a near-white page without a rim is a hole rather than a
+      surface. Idle life after settle is a sub-degree breath (0.7°) and a 5%
+      light pulse — present at twenty seconds, invisible as animation.
+
+      Responsive behaviour is one number, not a second architecture:
+      `allowance` is a smoothstep over the measured gutter width (70→150px),
+      so 1440 gets the full rake, 1024 collapses it to nothing and the walls
+      stop drawing entirely, and mobile never builds them. Tier caps and
+      reduced-motion contracts are unchanged.
+
+      Verification: `next build` compiles successfully (2.4 min, Turbopack)
+      and then fails its type-check step on the same 16 pre-existing errors
+      documented in Phases 9–11 — all in admin/analytics components that
+      import modules absent from the repo, none touched on this branch;
+      `tsc --noEmit` reproduces exactly those 16 and nothing under
+      `src/three/`. `npm run lint` reports 10 errors and 1 warning, all
+      pre-existing: the React Compiler's `react-hooks/refs` and
+      `react-hooks/immutability` rules fire on the r3f `useFrame` idiom
+      throughout (`skill-galaxy.tsx`, untouched, trips the identical pair;
+      the committed `project-panels.tsx` already tripped the same rule at
+      lines 114–115), plus four unrelated DOM-side findings. Phase 12 adds
+      no new lint violation, no dependency, no post-processing and no second
+      rendering path.
+
 ## 29. Quality bar — run this checklist at the end of Phase 10
 
 Does the site feel like one world? Does each section feel different? Are

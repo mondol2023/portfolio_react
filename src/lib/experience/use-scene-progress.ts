@@ -16,9 +16,10 @@ import { DEFAULT_TONE, isSectionTone, type SectionTone } from "@/lib/constants/s
  * edits. The eyeline test (a thin band across the viewport's middle) is
  * unchanged from the ambient background's original implementation.
  *
- * `progress` adds a continuous 0..1 read of scroll through the whole
- * document, independent of section boundaries — camera choreography needs a
- * smooth value to interpolate against, not a step function.
+ * `progress` adds a continuous 0..1 read of scroll, measured in *section
+ * space* rather than raw document pixels — camera choreography needs a smooth
+ * value to interpolate against, not a step function, but it also needs that
+ * value to line up with the section it is choreographing.
  *
  * Implemented as a module-scope external store (mirroring `use-scene-budget`
  * and `use-motion-preference`) rather than per-hook state, so the DOM only
@@ -37,7 +38,11 @@ export interface SceneProgress {
   index: number;
   /** Total tracked sections on this route. */
   count: number;
-  /** Continuous scroll position through the whole document: 0 at top, 1 at bottom. */
+  /**
+   * Continuous scroll position in section space: 0 at the first section's
+   * eyeline, 1 at the last's, and exactly `i / (count - 1)` as section `i`
+   * passes the reader's eyeline.
+   */
   progress: number;
 }
 
@@ -53,8 +58,53 @@ const listeners = new Set<() => void>();
 let startedPath: string | null = null;
 let teardown: (() => void) | null = null;
 
+/** Document-space y of each tracked section's midpoint, remeasured on layout change. */
+let centres: number[] = [];
+
 function notify() {
   for (const listener of listeners) listener();
+}
+
+/**
+ * Scroll expressed in section space.
+ *
+ * The camera path in `camera-rig.tsx` carries one waypoint per section and
+ * reads them off `progress * (count - 1)`, which is only correct if every
+ * section occupies an equal slice of the document. They do not: on this page
+ * Experience is well over twice the height of Skills, and the gap widens
+ * again on mobile where cards stack. Measured against raw document scroll the
+ * camera therefore arrived at each waypoint somewhere other than the section
+ * it belongs to — far enough out that Projects' corridor ran its whole
+ * entrance only after the Projects section had scrolled away, and Skills'
+ * galaxy was what actually hung over the Projects heading.
+ *
+ * Interpolating between the section *midpoints* instead pins waypoint `i` to
+ * the moment section `i` crosses the reader's eyeline — the same eyeline the
+ * `IntersectionObserver` above already uses to pick the tone — so the
+ * choreography lands on the content it was written for at every viewport
+ * width, without the camera path needing to know anything about page layout.
+ */
+function storyProgress(): number {
+  const doc = document.documentElement;
+  const max = doc.scrollHeight - doc.clientHeight;
+  if (max <= 0) return 0;
+
+  const y = window.scrollY;
+  const last = centres.length - 1;
+  // One section (or none) has no span to interpolate across; fall back to the
+  // raw document read so the value still moves.
+  if (last < 1) return Math.min(1, Math.max(0, y / max));
+
+  const first = centres[0] ?? 0;
+  if (y <= first) return 0;
+  if (y >= (centres[last] ?? 0)) return 1;
+
+  let i = 0;
+  while (i < last && y >= (centres[i + 1] ?? 0)) i += 1;
+  const a = centres[i] ?? 0;
+  const b = centres[i + 1] ?? a;
+  const local = b > a ? (y - a) / (b - a) : 0;
+  return (i + local) / last;
 }
 
 function start(pathname: string) {
@@ -66,6 +116,14 @@ function start(pathname: string) {
   store = { path: pathname, tone: DEFAULT_TONE, sectionId: null, index: -1, count: sections.length, progress: store.progress };
 
   const disposers: Array<() => void> = [];
+
+  function measure() {
+    const offset = window.scrollY;
+    centres = sections.map((section) => {
+      const rect = section.getBoundingClientRect();
+      return rect.top + offset + rect.height / 2;
+    });
+  }
 
   if (sections.length > 0) {
     const inBand = new Set<Element>();
@@ -95,14 +153,35 @@ function start(pathname: string) {
   }
 
   function onScroll() {
-    const doc = document.documentElement;
-    const max = doc.scrollHeight - doc.clientHeight;
-    const next = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    const next = storyProgress();
     if (next !== store.progress) {
       store = { ...store, progress: next };
       notify();
     }
   }
+
+  // Section midpoints are read once per layout change rather than once per
+  // scroll event: `getBoundingClientRect()` inside a scroll handler forces a
+  // synchronous reflow on every frame of a scroll, which is exactly the cost
+  // a single shared store exists to pay only once.
+  function remeasure() {
+    measure();
+    onScroll();
+  }
+
+  measure();
+
+  // Content arriving late (projects and experience are fetched, then pushed
+  // into the DOM) changes section heights well after mount; observing the
+  // document catches that without a second timer.
+  const resizeObserver = new ResizeObserver(remeasure);
+  resizeObserver.observe(document.documentElement);
+  disposers.push(() => resizeObserver.disconnect());
+
+  // A viewport-height change need not resize the document, but it still moves
+  // the eyeline — and on mobile the URL bar does it constantly.
+  window.addEventListener("resize", remeasure, { passive: true });
+  disposers.push(() => window.removeEventListener("resize", remeasure));
 
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
@@ -110,6 +189,7 @@ function start(pathname: string) {
 
   teardown = () => {
     for (const dispose of disposers) dispose();
+    centres = [];
     startedPath = null;
     teardown = null;
   };

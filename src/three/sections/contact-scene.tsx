@@ -1,7 +1,7 @@
 "use client";
 
 import { ContactCalm } from "../objects/contact-calm";
-import { sceneSectionProgress } from "../scene/camera-rig";
+import { sceneSectionEnvelope } from "../scene/camera-rig";
 
 interface ContactSceneProps {
   tone: string;
@@ -16,10 +16,10 @@ interface ContactSceneProps {
  * to visualise, only the single calm object the spec asks for.
  */
 export function ContactScene({ tone, toneSoft, reducedMotion, progress }: ContactSceneProps) {
-  // Index 4 (Projects → Contact) is this section's entrance span. Contact is
-  // the path's last waypoint, so unlike every earlier section-scene there is
-  // no further exit span to compute or fade toward.
-  const entryProgress = sceneSectionProgress(progress, 4);
+  // Waypoint index 5, the path's last. Projects → Contact is the entrance
+  // span; there is no span after it, so the envelope's `exit` is always 0 and
+  // this section — alone among the six — never fades back out.
+  const { entry } = sceneSectionEnvelope(progress, 5);
 
-  return <ContactCalm tone={tone} toneSoft={toneSoft} reducedMotion={reducedMotion} entryProgress={entryProgress} />;
+  return <ContactCalm tone={tone} toneSoft={toneSoft} reducedMotion={reducedMotion} entryProgress={entry} />;
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { budgetFor, stepDownTier, type SceneBudget } from "@/lib/experience/device-tier";
+import { buildScenePalette } from "@/lib/experience/scene-palette";
 import { usePointer } from "@/lib/experience/use-pointer";
 import { AboutScene } from "@/three/sections/about-scene";
 import { ContactScene } from "@/three/sections/contact-scene";
@@ -22,8 +23,10 @@ interface SceneCanvasProps {
   reducedMotion: boolean;
   budget: SceneBudget;
   progress: number;
+  /** The current section's resolved `--tone`. */
   tone: string;
-  toneSoft: string;
+  /** The theme's resolved `--bg` — what the scene's atmosphere and depth fade toward. */
+  background: string;
   /** The "three-particles" switch — gates `SceneEnvironment`'s dust field only. */
   particlesEnabled: boolean;
   /** The "three-camera-scroll" switch — gates `CameraRig`'s dolly only. */
@@ -34,9 +37,8 @@ interface SceneCanvasProps {
  * The actual `<Canvas>`, split into its own module so `next/dynamic` has a
  * single file to code-split — `three` and `@react-three/fiber` must never
  * enter a visitor's first-load bundle, exactly as `hero-core-scene.tsx`
- * already does for the Game Mode core. Section-scene groups (Phases 2–7)
- * mount here as siblings of `SceneEnvironment`, all inside this one
- * persistent canvas.
+ * already does for the Game Mode core. Section-scene groups mount here as
+ * siblings of `SceneEnvironment`, all inside this one persistent canvas.
  */
 export function SceneCanvas({
   active,
@@ -44,13 +46,19 @@ export function SceneCanvas({
   budget,
   progress,
   tone,
-  toneSoft,
+  background,
   particlesEnabled,
   cameraScrollEnabled,
 }: SceneCanvasProps) {
   // Lifted here, not inside each section-scene, so every section shares one
   // pointer listener instead of re-registering its own.
   const pointer = usePointer();
+
+  // Derived here rather than in `scene-root.tsx` so the colour maths stays on
+  // the code-split side of the dynamic import, and memoised because the
+  // section scenes take it as a prop and `progress` re-renders this component
+  // on every scroll event.
+  const palette = useMemo(() => buildScenePalette(tone, background), [tone, background]);
 
   // `classify()` (device-tier.ts) only sees hardware signals before a single
   // frame has drawn, and can be wrong. `FpsMonitor` corrects that at runtime:
@@ -76,7 +84,9 @@ export function SceneCanvas({
   return (
     <Canvas
       dpr={[1, effectiveBudget.maxDpr]}
-      camera={{ position: [0, 0, 6], fov: 48 }}
+      // The rig's own waypoints carry the real focal length from the first
+      // frame on; this is only the value before `CameraRig` has ticked once.
+      camera={{ position: [0, 0, 6], fov: 46 }}
       gl={{ antialias: true, alpha: true }}
       shadows={effectiveBudget.shadows}
       // Off-screen or backgrounded: stop the loop entirely rather than unmount
@@ -89,41 +99,51 @@ export function SceneCanvas({
           at all — the monitor only has something real to sample when neither
           holds. */}
       <FpsMonitor enabled={active && !reducedMotion} onSustainedDrop={handleSustainedDrop} />
-      <CameraRig progress={cameraProgress} reducedMotion={reducedMotion} />
-      <SceneLighting tone={tone} toneSoft={toneSoft} budget={effectiveBudget} />
-      <SceneEnvironment budget={environmentBudget} tone={tone} toneSoft={toneSoft} />
+      <CameraRig progress={cameraProgress} reducedMotion={reducedMotion} pointer={pointer} />
+      <SceneLighting palette={palette} budget={effectiveBudget} />
+      <SceneEnvironment budget={environmentBudget} palette={palette} reducedMotion={reducedMotion} />
       <HeroScene
-        tone={tone}
-        toneSoft={toneSoft}
+        tone={palette.accent}
+        toneSoft={palette.wash}
         reducedMotion={reducedMotion}
         progress={progress}
         budget={effectiveBudget}
         pointer={pointer}
       />
       <AboutScene
-        tone={tone}
-        toneSoft={toneSoft}
+        tone={palette.accent}
+        toneSoft={palette.wash}
         reducedMotion={reducedMotion}
         budget={effectiveBudget}
         progress={progress}
       />
       <SkillsScene
-        tone={tone}
-        toneSoft={toneSoft}
+        tone={palette.accent}
+        toneSoft={palette.wash}
         reducedMotion={reducedMotion}
         progress={progress}
         budget={effectiveBudget}
         pointer={pointer}
       />
-      <ExperienceScene tone={tone} toneSoft={toneSoft} reducedMotion={reducedMotion} progress={progress} />
+      <ExperienceScene
+        tone={palette.accent}
+        toneSoft={palette.wash}
+        reducedMotion={reducedMotion}
+        progress={progress}
+      />
       <ProjectsScene
-        tone={tone}
-        toneSoft={toneSoft}
+        palette={palette}
+        budget={effectiveBudget}
         reducedMotion={reducedMotion}
         progress={progress}
         pointer={pointer}
       />
-      <ContactScene tone={tone} toneSoft={toneSoft} reducedMotion={reducedMotion} progress={progress} />
+      <ContactScene
+        tone={palette.accent}
+        toneSoft={palette.wash}
+        reducedMotion={reducedMotion}
+        progress={progress}
+      />
     </Canvas>
   );
 }

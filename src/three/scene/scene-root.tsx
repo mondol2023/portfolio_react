@@ -57,7 +57,11 @@ export function SceneRoot({ enabledAnimations }: SceneRootProps) {
   const { tone, progress } = useSceneProgress();
   // Scoped to whichever section is currently under the eyeline, not always
   // "hero" — the persistent scene must track every tone, not just the first.
-  const colors = useCssColors(["--tone", "--tone-soft"], `[data-tone="${tone}"]`);
+  // `--bg` is a document-level token but inherits down to the same element,
+  // so one read covers both the section accent and the page it sits on;
+  // `--tone-soft` is deliberately not read here, since `useCssColors` cannot
+  // carry its alpha (see `scene-palette.ts`).
+  const colors = useCssColors(["--tone", "--bg"], `[data-tone="${tone}"]`);
 
   // "three-scene" off removes the whole layer, same as before Phase 9 wired
   // this up to Firestore — only the source of the flag changed.
@@ -81,8 +85,8 @@ export function SceneRoot({ enabledAnimations }: SceneRootProps) {
           reducedMotion={reducedMotion}
           budget={budget}
           progress={progress}
-          tone={colors["--tone"] ?? "#f97316"}
-          toneSoft={colors["--tone-soft"] ?? "#fdba74"}
+          tone={colors["--tone"] ?? "#c2410c"}
+          background={colors["--bg"] ?? "#fbfaf9"}
           particlesEnabled={enabledAnimations.includes("three-particles")}
           cameraScrollEnabled={enabledAnimations.includes("three-camera-scroll")}
         />

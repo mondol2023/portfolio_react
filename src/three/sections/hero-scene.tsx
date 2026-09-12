@@ -2,7 +2,7 @@
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
 
-import { sceneSectionProgress } from "../scene/camera-rig";
+import { sceneSectionEnvelope, sceneSectionProgress } from "../scene/camera-rig";
 import { HeroSculpture } from "../objects/hero-sculpture";
 
 interface HeroSceneProps {
@@ -21,11 +21,13 @@ interface HeroSceneProps {
  * elements stay scoped to their own small file as later phases add them.
  */
 export function HeroScene({ tone, toneSoft, reducedMotion, progress, budget, pointer }: HeroSceneProps) {
+  // Raw, not enveloped: this drives the sculpture's scroll rotation, which
+  // should track the camera's own travel out of Hero exactly.
   const heroProgress = sceneSectionProgress(progress, 0);
-  // Fades the sculpture out across the About → Skills camera segment, so it
-  // recedes once the story has moved past About rather than lingering behind
-  // every later section.
-  const exitProgress = sceneSectionProgress(progress, 1);
+  // Hero is the one section whose object deliberately lives on through the
+  // next one, so it takes About's envelope rather than its own: it recedes
+  // across About → Skills instead of lingering behind every later section.
+  const { exit: exitProgress } = sceneSectionEnvelope(progress, 1);
 
   return (
     <HeroSculpture

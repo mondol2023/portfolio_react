@@ -2,7 +2,7 @@
 
 import { useSceneContentStore } from "@/lib/store/scene-content-store";
 
-import { sceneSectionProgress } from "../scene/camera-rig";
+import { sceneSectionEnvelope } from "../scene/camera-rig";
 import { ExperienceTimeline } from "../objects/experience-timeline";
 
 interface ExperienceSceneProps {
@@ -19,10 +19,10 @@ interface ExperienceSceneProps {
  */
 export function ExperienceScene({ tone, toneSoft, reducedMotion, progress }: ExperienceSceneProps) {
   const experiences = useSceneContentStore((state) => state.experiences);
-  // Index 2 (Skills → Experience) is this section's entrance span; index 3
-  // (Experience → Projects) is its exit.
-  const entryProgress = sceneSectionProgress(progress, 2);
-  const exitProgress = sceneSectionProgress(progress, 3);
+  // Waypoint index 4 — Experience is the fifth section in DOM order, so
+  // Projects → Experience is the entrance span and Experience → Contact the
+  // exit, with a dwell between the two.
+  const { entry, exit } = sceneSectionEnvelope(progress, 4);
 
   if (experiences.length === 0) return null;
 
@@ -32,8 +32,8 @@ export function ExperienceScene({ tone, toneSoft, reducedMotion, progress }: Exp
       tone={tone}
       toneSoft={toneSoft}
       reducedMotion={reducedMotion}
-      entryProgress={entryProgress}
-      exitProgress={exitProgress}
+      entryProgress={entry}
+      exitProgress={exit}
     />
   );
 }

@@ -1,0 +1,153 @@
+/**
+ * Scene colour, derived from the page's own tokens.
+ *
+ * `use-css-colors.ts` collapses every custom property through the browser's
+ * colour parser and returns `#rrggbb` — which silently drops alpha. That is
+ * fine for `--tone` (an opaque accent) but destroys `--tone-soft`, which is
+ * declared as `rgba(190, 18, 60, 0.12)`: the wash the 2D ambient background
+ * paints at 12% opacity arrives in WebGL as *full-strength crimson*. Before
+ * this file the scene was therefore lighting itself with two copies of the
+ * same saturated accent and fogging the world in it.
+ *
+ * So the scene stops trusting `--tone-soft` and derives its own palette from
+ * the two tokens that survive the round trip intact: the section accent and
+ * the page background. Everything else — the wash that `--tone-soft` *meant*,
+ * the key light's warm near-white, the matte body colour, the darkest backing
+ * plane — is mixed from those two here, in one place, so a palette change in
+ * `globals.css` still moves the whole 3D layer with it.
+ *
+ * Deliberately free of any `three` import: `scene-root.tsx` is not
+ * code-split, so anything it can reach must stay out of the first-load
+ * bundle. The mixing below is plain sRGB arithmetic on hex strings.
+ */
+
+export interface ScenePalette {
+  /** The section accent at full strength — emissive rims and the accent light. */
+  accent: string;
+  /** What `--tone-soft`'s alpha actually meant: the accent as it lands over the page. */
+  wash: string;
+  /** The page background — the colour distance fades toward. */
+  atmosphere: string;
+  /** Key light. Never pure white: warm-neutral, faintly carrying the accent. */
+  key: string;
+  /** The weak fill from behind, tinted rather than grey. */
+  fill: string;
+  /** The matte body colour geometry starts from — the spec's 70% neutral. */
+  surface: string;
+  /** Backing plates and the darkest end of the depth stack. */
+  deep: string;
+  /** True when the page is in dark mode; the rig balances differently on each. */
+  dark: boolean;
+}
+
+interface Rgb {
+  r: number;
+  g: number;
+  b: number;
+}
+
+const FALLBACK_ACCENT: Rgb = { r: 194, g: 65, b: 12 };
+const FALLBACK_BG: Rgb = { r: 251, g: 250, b: 249 };
+
+function parseHex(value: string): Rgb | null {
+  const hex = value.trim().replace(/^#/, "");
+  const full = hex.length === 3 ? [...hex].map((char) => char + char).join("") : hex;
+  if (full.length !== 6 || !/^[0-9a-f]{6}$/i.test(full)) return null;
+
+  const int = Number.parseInt(full, 16);
+  return { r: (int >> 16) & 255, g: (int >> 8) & 255, b: int & 255 };
+}
+
+function toHex({ r, g, b }: Rgb): string {
+  const channel = (value: number) =>
+    Math.round(Math.min(255, Math.max(0, value)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(r)}${channel(g)}${channel(b)}`;
+}
+
+function mix(a: Rgb, b: Rgb, amount: number): Rgb {
+  const t = Math.min(1, Math.max(0, amount));
+  return { r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t };
+}
+
+/** Perceived brightness, 0–1 — only ever used to answer "is this page dark?". */
+function luminance({ r, g, b }: Rgb): number {
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+function toHsl({ r, g, b }: Rgb): { h: number; s: number; l: number } {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const l = (max + min) / 2;
+
+  if (max === min) return { h: 0, s: 0, l };
+
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h =
+    max === red
+      ? ((green - blue) / d + (green < blue ? 6 : 0)) / 6
+      : max === green
+        ? ((blue - red) / d + 2) / 6
+        : ((red - green) / d + 4) / 6;
+
+  return { h, s, l };
+}
+
+function fromHsl(h: number, s: number, l: number): Rgb {
+  if (s === 0) return { r: l * 255, g: l * 255, b: l * 255 };
+
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (offset: number): number => {
+    let t = h + offset;
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+
+  return { r: channel(1 / 3) * 255, g: channel(0) * 255, b: channel(-1 / 3) * 255 };
+}
+
+/** Keeps a mix's hue and chroma but moves it to a chosen brightness. */
+function atLightness(color: Rgb, lightness: number): Rgb {
+  const { h, s } = toHsl(color);
+  return fromHsl(h, s, Math.min(1, Math.max(0, lightness)));
+}
+
+/**
+ * @param tone The section's resolved `--tone`, e.g. `"#be123c"`.
+ * @param background The resolved `--bg` for the current theme.
+ */
+export function buildScenePalette(tone: string, background: string): ScenePalette {
+  const accent = parseHex(tone) ?? FALLBACK_ACCENT;
+  const page = parseHex(background) ?? FALLBACK_BG;
+  const dark = luminance(page) < 0.4;
+
+  // The wash is the accent seen *through* the page, which is what the CSS
+  // `rgba()` was describing — mixed a little stronger than 12% because WebGL
+  // renders it as a light colour rather than a flat overlay.
+  const wash = mix(page, accent, dark ? 0.34 : 0.26);
+
+  return {
+    accent: toHex(accent),
+    wash: toHex(wash),
+    atmosphere: toHex(page),
+    // "No harsh white": a warm near-white carrying a trace of the section hue,
+    // so the key never reads as a studio strobe against a warm neutral page.
+    key: toHex(mix({ r: 255, g: 251, b: 245 }, accent, dark ? 0.14 : 0.07)),
+    fill: toHex(atLightness(mix(page, accent, 0.5), dark ? 0.42 : 0.6)),
+    // Mid-lightness in both themes: geometry must separate from the page
+    // rather than sink into it, which a straight tint of `--bg` would do.
+    surface: toHex(atLightness(mix(page, accent, dark ? 0.22 : 0.3), dark ? 0.31 : 0.64)),
+    deep: toHex(atLightness(mix(page, accent, 0.18), dark ? 0.06 : 0.17)),
+    dark,
+  };
+}

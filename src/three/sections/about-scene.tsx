@@ -3,7 +3,7 @@
 import type { SceneBudget } from "@/lib/experience/device-tier";
 
 import { AboutFragments } from "../objects/about-fragments";
-import { sceneSectionProgress } from "../scene/camera-rig";
+import { sceneSectionEnvelope } from "../scene/camera-rig";
 
 interface AboutSceneProps {
   tone: string;
@@ -15,13 +15,11 @@ interface AboutSceneProps {
 
 /**
  * About's slice of the persistent canvas — the fragment cluster only.
- * Waypoint index 0 is Hero → About (this section's entrance), index 1 is
- * About → Skills (this section's exit) — the same two spans Hero already
- * reads from index 0/1, since About sits immediately after Hero on the path.
+ * Waypoint index 1: the envelope reads Hero → About as this section's
+ * entrance and About → Skills as its exit, with a dwell between the two.
  */
 export function AboutScene({ tone, toneSoft, reducedMotion, budget, progress }: AboutSceneProps) {
-  const entryProgress = sceneSectionProgress(progress, 0);
-  const exitProgress = sceneSectionProgress(progress, 1);
+  const { entry, exit } = sceneSectionEnvelope(progress, 1);
 
   return (
     <AboutFragments
@@ -29,8 +27,8 @@ export function AboutScene({ tone, toneSoft, reducedMotion, budget, progress }: 
       toneSoft={toneSoft}
       reducedMotion={reducedMotion}
       budget={budget}
-      entryProgress={entryProgress}
-      exitProgress={exitProgress}
+      entryProgress={entry}
+      exitProgress={exit}
     />
   );
 }
