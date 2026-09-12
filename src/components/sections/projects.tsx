@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { hasDemoContent } from "@/lib/constants/demo-content";
 import type { Project } from "@/lib/types/content";
+import { ProjectsSceneBridge } from "@/three/bridge/scene-data-bridge";
 
 import { Section, headingId } from "./section";
 
@@ -71,6 +72,9 @@ export function Projects({ projects, totalCount }: ProjectsProps) {
           ))}
         </Stagger>
       )}
+
+      {/* Hands this section's data to the persistent 3D scene; renders nothing. */}
+      <ProjectsSceneBridge projects={visible} />
     </Section>
   );
 }

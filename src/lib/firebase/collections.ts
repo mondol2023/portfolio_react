@@ -16,4 +16,5 @@ export const COLLECTIONS = {
 export const CONTENT_DOCS = {
   about: "about",
   siteSettings: "siteSettings",
+  animationSettings: "animationSettings",
 } as const;

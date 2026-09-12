@@ -70,6 +70,19 @@ export function budgetFor(tier: Tier): SceneBudget {
   return BUDGETS[tier];
 }
 
+const TIER_STEP_DOWN: Record<Tier, Tier> = { high: "mid", mid: "low", low: "low" };
+
+/**
+ * One notch down from a tier the static `classify()` guess got wrong —
+ * `low` has nowhere left to go. Used only by runtime FPS degradation
+ * (`fps-monitor.tsx`): the initial classification is a best guess from specs
+ * that can lie, and a device that is actually struggling in practice deserves
+ * a correction, not a permanent misdiagnosis.
+ */
+export function stepDownTier(tier: Tier): Tier {
+  return TIER_STEP_DOWN[tier];
+}
+
 /**
  * Reduced motion collapses the budget to its floor regardless of hardware.
  *
@@ -100,6 +113,12 @@ export function classify({ memory, cores, coarsePointer, width }: DeviceSignals)
   // genuinely constrained machine rather than a rounding artefact.
   if (memory !== undefined && memory <= 2) return "low";
   if (cores !== undefined && cores <= 2) return "low";
+
+  // A coarse pointer under ~1024px is a tablet: reported cores/memory on
+  // these routinely rival a laptop's, but the spec asks for tablets to get
+  // reduced complexity regardless — so this is capped at `mid` before the
+  // `high` checks below ever run, rather than trusting the hardware numbers.
+  if (coarsePointer && width < 1024) return "mid";
 
   if (memory !== undefined && memory >= 8 && cores !== undefined && cores >= 8) return "high";
   if (cores !== undefined && cores >= 12) return "high";

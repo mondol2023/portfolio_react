@@ -7,8 +7,10 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
 import { JsonLd } from "@/components/seo/json-ld";
 import { getSiteUrl } from "@/lib/constants/site";
+import { getAnimationSettings } from "@/lib/firebase/repositories/animation-settings-repository";
 import { getSiteSettings } from "@/lib/firebase/repositories/site-settings-repository";
 import { resolveSocialLinks } from "@/lib/utils/social";
+import { SceneRoot } from "@/three/scene/scene-root";
 
 /**
  * Public shell.
@@ -18,7 +20,10 @@ import { resolveSocialLinks } from "@/lib/utils/social";
  * out simply by living outside this group.
  */
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
-  const settings = await getSiteSettings();
+  const [settings, animationSettings] = await Promise.all([
+    getSiteSettings(),
+    getAnimationSettings(),
+  ]);
   const socials = resolveSocialLinks(settings);
 
   const person: Record<string, unknown> = {
@@ -37,6 +42,8 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       <JsonLd data={person} />
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
+      {/* The persistent cinematic 3D layer — one canvas for the whole site. */}
+      <SceneRoot enabledAnimations={animationSettings.enabled} />
       <SkipLink />
       <SiteHeader name={settings.name} />
 

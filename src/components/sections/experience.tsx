@@ -15,6 +15,7 @@ import {
 } from "@/lib/types/content";
 import { formatDateRange, formatDuration, toDateTimeAttribute } from "@/lib/utils/dates";
 import { lookupTechIcon, type TechIconMap } from "@/lib/utils/tech-icons";
+import { ExperienceSceneBridge } from "@/three/bridge/scene-data-bridge";
 
 import { Section, headingId } from "./section";
 
@@ -206,6 +207,9 @@ export function Experience({ experiences, techIcons }: ExperienceProps) {
           </ol>
         </ScrollProgressLine>
       )}
+
+      {/* Hands this section's data to the persistent 3D scene; renders nothing. */}
+      <ExperienceSceneBridge experiences={experiences} />
     </Section>
   );
 }

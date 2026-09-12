@@ -164,6 +164,21 @@ export interface SiteSettings {
   availabilityLabel: string;
 }
 
+/**
+ * Ids for the site's independently switchable animations. Plain strings, not
+ * a stricter union all the way through Firestore, because an id removed from
+ * this list in a later release must still round-trip out of an existing
+ * document rather than fail to parse.
+ */
+export const ANIMATION_IDS = ["three-scene", "three-particles", "three-camera-scroll"] as const;
+
+export type AnimationId = (typeof ANIMATION_IDS)[number];
+
+export interface AnimationSettings {
+  /** Ids currently switched on. Absence means off — there is no third state. */
+  enabled: string[];
+}
+
 export interface ContactMessage {
   id: string;
   name: string;

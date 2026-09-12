@@ -1,4 +1,4 @@
-import type { About, SiteSettings } from "@/lib/types/content";
+import { ANIMATION_IDS, type About, type AnimationSettings, type SiteSettings } from "@/lib/types/content";
 
 /**
  * Fallback content.
@@ -41,4 +41,13 @@ export const DEFAULT_ABOUT: About = {
   // Empty by design: statistics are a personal claim, so they start unset and
   // are populated by the site owner in /admin/about.
   stats: [],
+};
+
+/**
+ * Every animation ships on until a site owner switches it off — a fresh clone
+ * with no Firestore document yet should look exactly like one where an admin
+ * has visited /admin/settings and left every switch untouched.
+ */
+export const DEFAULT_ANIMATION_SETTINGS: AnimationSettings = {
+  enabled: [...ANIMATION_IDS],
 };

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { hasDemoContent } from "@/lib/constants/demo-content";
 import type { Skill } from "@/lib/types/content";
+import { SkillsSceneBridge } from "@/three/bridge/scene-data-bridge";
 
 import { Section, headingId } from "./section";
 
@@ -55,6 +56,8 @@ export function Skills({ skills }: { skills: Skill[] }) {
 
       {/* Game Mode only, opt-in — renders nothing in Normal Mode. See SkillGalaxy. */}
       <SkillGalaxy skills={skills} />
+      {/* Hands this section's data to the persistent 3D scene; renders nothing. */}
+      <SkillsSceneBridge skills={skills} />
     </Section>
   );
 }

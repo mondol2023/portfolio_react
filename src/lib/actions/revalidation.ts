@@ -57,3 +57,8 @@ export function revalidateSiteSettings(): void {
   revalidatePath("/projects/[slug]", "page");
   revalidatePath("/opengraph-image");
 }
+
+/** The 3D scene is mounted in the shared `(site)` layout, behind every page. */
+export function revalidateAnimationSettings(): void {
+  revalidateHome();
+}

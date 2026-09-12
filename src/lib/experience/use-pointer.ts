@@ -20,6 +20,12 @@ export function usePointer(): { current: { x: number; y: number } } {
     // `passive` because we never call `preventDefault` here — it lets the
     // browser keep scrolling on the compositor thread while we track.
     function onMove(event: PointerEvent) {
+      // A touch drag fires `pointermove` too, but the spec is explicit that
+      // "touch never emulates desktop mouse parallax" — a finger has no
+      // resting hover position, so letting a touch update this value would
+      // leave every parallax/tilt/hover effect frozen wherever the last
+      // touch happened to end, rather than genuinely reacting to a cursor.
+      if (event.pointerType === "touch") return;
       pointer.current.x = (event.clientX / window.innerWidth) * 2 - 1;
       pointer.current.y = -((event.clientY / window.innerHeight) * 2 - 1);
     }
