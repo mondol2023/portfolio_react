@@ -7,15 +7,19 @@ import * as THREE from "three";
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import { seededRandom } from "@/lib/experience/random";
 
+import { sceneScroll } from "@/lib/experience/scene-scroll";
+
+import { heroShellSpin } from "./hero-sculpture";
+import { sceneSectionEnvelope } from "../scene/camera-rig";
+import { arcSlotPosition, fibonacciSpherePoints, HERO_SCULPTURE_RADIUS } from "../scene/geometry";
+
 interface AboutFragmentsProps {
   tone: string;
   toneSoft: string;
   reducedMotion: boolean;
   budget: SceneBudget;
-  /** 0 at rest in Hero, 1 once the camera has fully arrived at About — drives the scatter-to-reorganize entrance. */
-  entryProgress: number;
-  /** 0 while resident in About, 1 once the camera has moved on toward Skills — drives the condense-away exit. */
-  exitProgress: number;
+  /** This section's waypoint index: `entry` drives the scatter-to-reorganize, `exit` the condense-away. */
+  sectionIndex: number;
 }
 
 interface Shard {
@@ -35,25 +39,32 @@ interface Shard {
  * mobile composition, not a scaled-down desktop scene," how many shards make
  * it up at all on the lowest device tier.
  */
+const SHARD_UP = new THREE.Vector3(0, 1, 0);
+
 function buildShards(shardCount: number): Shard[] {
   const random = seededRandom(11);
+  const shellPoints = fibonacciSpherePoints(shardCount, HERO_SCULPTURE_RADIUS);
   const shards: Shard[] = [];
 
   for (let i = 0; i < shardCount; i += 1) {
-    const scatterRadius = 1.8 + random() * 1.6;
-    const scatterTheta = random() * Math.PI * 2;
-    const scatterPhi = Math.acos(2 * random() - 1);
-    const scattered = new THREE.Vector3(
-      scatterRadius * Math.sin(scatterPhi) * Math.cos(scatterTheta),
-      scatterRadius * Math.cos(scatterPhi) * 0.7,
-      scatterRadius * Math.sin(scatterPhi) * Math.sin(scatterTheta),
-    );
-    const scatteredQuat = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(random() * Math.PI * 2, random() * Math.PI * 2, random() * Math.PI * 2),
-    );
+    const { position, normal } = shellPoints[i]!;
+    // Read straight off Hero's shell, not an independent scatter — this is
+    // the same sphere breaking apart, so the start pose has to be its surface.
+    const scattered = position.clone();
+    const scatteredQuat = new THREE.Quaternion()
+      .setFromUnitVectors(SHARD_UP, normal)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(normal, random() * Math.PI * 2));
 
     const arcT = shardCount === 1 ? 0 : i / (shardCount - 1) - 0.5;
-    const target = new THREE.Vector3(arcT * 3.2, Math.sin(arcT * Math.PI) * 0.35 + (random() - 0.5) * 0.15, -0.6 + (random() - 0.5) * 0.2);
+    const target = arcSlotPosition(arcT);
+    target.x += (random() - 0.5) * 0.15;
+    target.y += (random() - 0.5) * 0.15;
+    target.z += (random() - 0.5) * 0.2;
+    // The two end shards drift forward instead of settling flush — they read
+    // as passing in front of the heading rather than lining up behind it.
+    if (i === 0 || i === shardCount - 1) {
+      target.z += 0.75;
+    }
     const targetQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, arcT * 0.6, 0));
 
     shards.push({
@@ -88,8 +99,7 @@ export function AboutFragments({
   toneSoft,
   reducedMotion,
   budget,
-  entryProgress,
-  exitProgress,
+  sectionIndex,
 }: AboutFragmentsProps) {
   const shardCount = budget.tier === "low" ? 4 : 7;
   const shards = useMemo(() => buildShards(shardCount), [shardCount]);
@@ -100,11 +110,19 @@ export function AboutFragments({
     const outer = outerRef.current;
     if (!outer) return;
 
+    // Read per frame, not taken as a prop: scroll moves every frame, and
+    // re-rendering the canvas at that rate is what `<ScrollPhysics>` avoids.
+    const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
+
     const damp = reducedMotion ? 1 : 1 - Math.pow(0.001, delta);
     // Reduced motion: land fully formed immediately, no scatter-to-order
     // choreography — the cluster still legibly represents About, just static.
+    // `appear` pops the cluster to full scale fast — it's already the whole
+    // shell, breaking apart, not growing from nothing. `formAmount` is the
+    // slower position/rotation lerp from shell to arc.
+    const appear = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 0.12);
     const formAmount = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0.05, 0.95);
-    const envelope = formAmount * (1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1));
+    const envelope = appear * (1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1));
 
     shards.forEach((shard, index) => {
       const group = shardRefs.current[index];
@@ -117,6 +135,9 @@ export function AboutFragments({
       group.quaternion.slerp(scratchQuat, damp);
     });
 
+    // Carries Hero's live spin into the shell's break-up, dying out as the
+    // shards finish settling into the arc — one motion, not a handoff cut.
+    outer.rotation.y = heroShellSpin.angle * (1 - formAmount);
     outer.scale.setScalar(reducedMotion ? envelope : THREE.MathUtils.lerp(outer.scale.x, envelope, damp));
   });
 

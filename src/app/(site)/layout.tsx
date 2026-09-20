@@ -2,6 +2,9 @@ import { GameHUD } from "@/components/game/game-hud";
 import { GameProgressTracker } from "@/components/game/game-progress-tracker";
 import { WorldLayer } from "@/components/game/world-layer";
 import { AmbientBackground } from "@/components/layout/ambient-background";
+import { CursorAura } from "@/components/layout/cursor-aura";
+import { InspectModeEffects } from "@/components/layout/inspect-mode-effects";
+import { SceneryController } from "@/components/layout/scenery-controller";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SkipLink } from "@/components/layout/skip-link";
@@ -25,6 +28,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
     getAnimationSettings(),
   ]);
   const socials = resolveSocialLinks(settings);
+  const sceneryEnabled = animationSettings.enabled.includes("three-scenery");
 
   const person: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -42,10 +46,18 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       <JsonLd data={person} />
       {/* Public shell only — the admin dashboard stays flat and quiet. */}
       <AmbientBackground />
+      {/* Keeps `data-scenery` on `<html>` in sync with the store; renders nothing. */}
+      <SceneryController enabled={sceneryEnabled} />
       {/* The persistent cinematic 3D layer — one canvas for the whole site. */}
       <SceneRoot enabledAnimations={animationSettings.enabled} />
+      {/* Blueprint's Inspect mode (§6.3) — freezes scroll, dims the page and
+          gives the free orbit an exit. Renders nothing outside Inspect. */}
+      <InspectModeEffects />
+      {/* DOM/CSS only, not WebGL — grouped with the scene toggles because it's
+          part of the same cinematic layer as far as the admin is concerned. */}
+      <CursorAura enabledAnimations={animationSettings.enabled} />
       <SkipLink />
-      <SiteHeader name={settings.name} />
+      <SiteHeader name={settings.name} sceneryEnabled={sceneryEnabled} />
 
       <main id="main" className="flex-1">
         {children}

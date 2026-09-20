@@ -3,14 +3,12 @@
 import type { SceneBudget } from "@/lib/experience/device-tier";
 
 import { AboutFragments } from "../objects/about-fragments";
-import { sceneSectionEnvelope } from "../scene/camera-rig";
 
 interface AboutSceneProps {
   tone: string;
   toneSoft: string;
   reducedMotion: boolean;
   budget: SceneBudget;
-  progress: number;
 }
 
 /**
@@ -18,17 +16,14 @@ interface AboutSceneProps {
  * Waypoint index 1: the envelope reads Hero → About as this section's
  * entrance and About → Skills as its exit, with a dwell between the two.
  */
-export function AboutScene({ tone, toneSoft, reducedMotion, budget, progress }: AboutSceneProps) {
-  const { entry, exit } = sceneSectionEnvelope(progress, 1);
-
+export function AboutScene({ tone, toneSoft, reducedMotion, budget }: AboutSceneProps) {
   return (
     <AboutFragments
       tone={tone}
       toneSoft={toneSoft}
       reducedMotion={reducedMotion}
       budget={budget}
-      entryProgress={entry}
-      exitProgress={exit}
+      sectionIndex={1}
     />
   );
 }

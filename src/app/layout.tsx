@@ -97,9 +97,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // `suppressHydrationWarning` is required: next-themes sets the theme class
     // on <html> in a pre-paint script, so the server markup deliberately differs.
+    // `data-scenery` starts at the default and is corrected post-mount from
+    // `localStorage` by `SceneryController` (S2) — covered by the same warning.
     <html
       lang="en"
       suppressHydrationWarning
+      data-scenery="atelier"
       className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full`}
     >
       <body className="flex min-h-full flex-col">

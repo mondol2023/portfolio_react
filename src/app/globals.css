@@ -396,8 +396,14 @@
    * in both modes, plus soft light rays in light mode and a slow star field in
    * dark. Both extra layers are always rendered and switched with opacity, so
    * the theme difference costs no JavaScript and cannot flash on hydration.
+   *
+   * Namespaced under `[data-scenery="atelier"]` (S13): the component reads
+   * only attributes and never subscribes to the scenery store, so a switch
+   * costs no re-render — `globals.css` is the only place that knows four
+   * looks exist. This block is `atelier`'s, moved here verbatim; nothing
+   * about the current backdrop is redesigned.
    */
-  .ambient {
+  [data-scenery="atelier"] .ambient {
     position: fixed;
     inset: 0;
     z-index: -10;
@@ -408,7 +414,7 @@
       --tone-soft 900ms ease;
   }
 
-  .ambient-blob {
+  [data-scenery="atelier"] .ambient-blob {
     position: absolute;
     border-radius: 9999px;
     background: radial-gradient(circle at center, var(--tone-soft) 0%, transparent 70%);
@@ -416,7 +422,7 @@
     will-change: transform;
   }
 
-  .ambient-blob-a {
+  [data-scenery="atelier"] .ambient-blob-a {
     width: 46rem;
     height: 46rem;
     top: -16rem;
@@ -424,7 +430,7 @@
     animation: ambient-drift-a 34s ease-in-out infinite alternate;
   }
 
-  .ambient-blob-b {
+  [data-scenery="atelier"] .ambient-blob-b {
     width: 38rem;
     height: 38rem;
     top: 32%;
@@ -432,7 +438,7 @@
     animation: ambient-drift-b 44s ease-in-out infinite alternate;
   }
 
-  .ambient-blob-c {
+  [data-scenery="atelier"] .ambient-blob-c {
     width: 34rem;
     height: 34rem;
     bottom: -14rem;
@@ -441,7 +447,7 @@
   }
 
   /* Light mode: angled light shafts from the top-left. */
-  .ambient-rays {
+  [data-scenery="atelier"] .ambient-rays {
     position: absolute;
     inset: -25% -20% auto -20%;
     height: 95%;
@@ -456,12 +462,12 @@
     animation: ambient-rays-shift 26s linear infinite;
   }
 
-  .dark .ambient-rays {
+  .dark [data-scenery="atelier"] .ambient-rays {
     opacity: 0;
   }
 
   /* Dark mode: a tiled star field, a couple of stars per tile tinted by tone. */
-  .ambient-stars {
+  [data-scenery="atelier"] .ambient-stars {
     position: absolute;
     inset: 0;
     opacity: 0;
@@ -477,10 +483,95 @@
     background-repeat: repeat;
   }
 
-  .dark .ambient-stars {
+  .dark [data-scenery="atelier"] .ambient-stars {
     opacity: 1;
     animation: ambient-twinkle 7s ease-in-out infinite alternate;
   }
+
+  /*
+   * Blueprint (Phase G): the drafting table, not a retint of the studio. The
+   * three blobs become a fine cyan grid — the same DOM nodes `ambient.tsx`
+   * always renders, so the switch costs no JavaScript here either — and the
+   * rays/stars layers are switched off outright rather than recoloured, since
+   * neither a light-shaft nor a star field belongs on a schematic.
+   */
+  [data-scenery="blueprint"] .ambient {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--bg);
+  }
+
+  [data-scenery="blueprint"] .ambient-blob {
+    position: absolute;
+    inset: -10%;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(63, 184, 255, 0.16) 0 1px, transparent 1px 64px),
+      repeating-linear-gradient(90deg, rgba(63, 184, 255, 0.16) 0 1px, transparent 1px 64px);
+    filter: none;
+    opacity: 0.5;
+    will-change: transform;
+  }
+
+  [data-scenery="blueprint"] .ambient-blob-a {
+    width: auto;
+    height: auto;
+    top: 0;
+    left: 0;
+    animation: blueprint-grid-drift 60s linear infinite;
+  }
+
+  /* Only one grid is needed for the read; the other two blobs stay in the DOM but contribute nothing. */
+  [data-scenery="blueprint"] .ambient-blob-b,
+  [data-scenery="blueprint"] .ambient-blob-c {
+    display: none;
+  }
+
+  [data-scenery="blueprint"] .ambient-rays,
+  [data-scenery="blueprint"] .ambient-stars {
+    display: none;
+  }
+
+  /*
+   * Garden (Phase J): a terrarium, not a retint of the studio. Same three
+   * blob nodes as `atelier`, recoloured green and slowed down — no light
+   * shafts, no star field, since this scenery's daylight is diffuse and
+   * constant rather than directional or nocturnal.
+   */
+  [data-scenery="garden"] .ambient-blob {
+    background: radial-gradient(circle at center, color-mix(in oklch, var(--tone-soft) 70%, #cfe8c2) 0%, transparent 72%);
+    filter: blur(70px);
+  }
+
+  [data-scenery="garden"] .ambient-blob-a {
+    animation-duration: 52s;
+  }
+
+  [data-scenery="garden"] .ambient-blob-b {
+    animation-duration: 60s;
+  }
+
+  [data-scenery="garden"] .ambient-blob-c {
+    animation-duration: 48s;
+  }
+
+  [data-scenery="garden"] .ambient-rays,
+  [data-scenery="garden"] .ambient-stars {
+    display: none;
+  }
+}
+
+/*
+ * Inspect mode (§6.3): the free orbit takes the canvas's pointer-events, and
+ * the page underneath has to visibly and functionally step back rather than
+ * just sit at a lower opacity a reader could still tab into.
+ */
+[data-scene-inspecting="true"] #main {
+  opacity: 0.12;
+  pointer-events: none;
+  transition: opacity 400ms ease;
 }
 
 @keyframes dialog-in {
@@ -535,6 +626,23 @@
   }
 }
 
+@keyframes blueprint-grid-drift {
+  to {
+    transform: translate3d(64px, 64px, 0);
+  }
+}
+
+@keyframes cursor-aura-ripple {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.5);
+  }
+}
+
 /*
  * Reduced motion, part two.
  *
@@ -566,13 +674,25 @@
     display: none;
   }
 
-  .ambient-blob,
-  .ambient-rays,
-  .ambient-stars {
+  [data-scenery="atelier"] .ambient-blob,
+  [data-scenery="atelier"] .ambient-rays,
+  [data-scenery="atelier"] .ambient-stars {
     animation: none !important;
   }
 
-  .ambient {
+  [data-scenery="atelier"] .ambient {
+    transition: none;
+  }
+
+  [data-scenery="blueprint"] .ambient-blob {
+    animation: none !important;
+  }
+
+  [data-scenery="garden"] .ambient-blob {
+    animation: none !important;
+  }
+
+  [data-scene-inspecting="true"] #main {
     transition: none;
   }
 }
@@ -607,4 +727,99 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
+}
+
+/*
+ * Drifter grab (Act II, Phase 20)
+ * -------------------------------
+ * Toggled on `<body>` for the length of a drag — see `scene-pointer.ts`.
+ * Unlayered so it reliably beats any `cursor-*` utility on the hovered
+ * element itself; layer order can't be trusted to win that fight from inside
+ * `@layer utilities`. `user-select` is the part that matters: without it a
+ * drag across a paragraph selects the paragraph.
+ */
+.scene-dragging,
+.scene-dragging * {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/*
+ * Cursor aura (Act III, Phase D)
+ * -------------------------------
+ * Replaces the dot-and-ring follower. The system cursor is never hidden —
+ * this is one composited glow layered under it. `.cursor-aura`'s position is
+ * written imperatively (`style.transform`, see `cursor-aura.tsx`) from a
+ * pointermove-batched rAF loop; everything else here — visibility, the
+ * suspend-on-scroll fade, the hover scale — is a plain CSS transition so the
+ * rAF loop only ever touches one property on one element.
+ *
+ * z-40 keeps it under the toast layer (z-100), native `<dialog>` (always
+ * top-layer) and the mobile menu (z-50) — a glow under a modal scrim reads as
+ * a smear (see `dialog.tsx`, `toast.tsx`, `mobile-menu.tsx`).
+ */
+.cursor-aura-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.cursor-aura {
+  position: fixed;
+  top: -140px;
+  left: -140px;
+  width: 280px;
+  height: 280px;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  will-change: transform;
+}
+
+.cursor-aura[data-visible="true"] {
+  opacity: 1;
+}
+
+.cursor-aura[data-suspended="true"] {
+  opacity: 0;
+}
+
+.cursor-aura-glow {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--tone) 8%, transparent), transparent 70%);
+  mix-blend-mode: plus-lighter;
+  transform: scale(1);
+  transition: transform 200ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@supports not (mix-blend-mode: plus-lighter) {
+  .cursor-aura-glow {
+    mix-blend-mode: screen;
+  }
+}
+
+.cursor-aura-glow--hover {
+  transform: scale(1.3);
+}
+
+.cursor-aura-label {
+  font-size: 10px;
+  color: var(--tone);
+  white-space: nowrap;
+}
+
+.cursor-aura-ripple {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  border-radius: 9999px;
+  border: 1px solid var(--tone);
+  pointer-events: none;
+  animation: cursor-aura-ripple 500ms ease-out forwards;
 }

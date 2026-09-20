@@ -25,6 +25,14 @@ import { DEFAULT_TONE, isSectionTone, type SectionTone } from "@/lib/constants/s
  * and `use-motion-preference`) rather than per-hook state, so the DOM only
  * ever carries one observer and one scroll listener no matter how many
  * components call this hook.
+ *
+ * The two halves of that store leave by different doors, because they change at
+ * very different rates. `tone` changes a handful of times per page and is read
+ * through React (`useSceneTone`). `progress` changes on every scroll event and
+ * is *not*: it is pulled by the scene's frame loop (`getSceneProgress`), which
+ * springs it into `scene-scroll.ts`. Routing it through React state instead
+ * re-rendered the whole canvas subtree at scroll frequency, which is what the
+ * performance contract forbids.
  */
 
 const MIDDLE_BAND = "-45% 0px -45% 0px";
@@ -60,6 +68,12 @@ let teardown: (() => void) | null = null;
 
 /** Document-space y of each tracked section's midpoint, remeasured on layout change. */
 let centres: number[] = [];
+
+/** DOM ids of the tracked sections, in document order — `progress`'s implicit index. */
+let sectionIds: string[] = [];
+
+/** Subscribers to `progress`, which deliberately never goes through React. */
+const progressListeners = new Set<() => void>();
 
 function notify() {
   for (const listener of listeners) listener();
@@ -113,6 +127,7 @@ function start(pathname: string) {
 
   startedPath = pathname;
   const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-tone-anchor]"));
+  sectionIds = sections.map((section) => section.id);
   store = { path: pathname, tone: DEFAULT_TONE, sectionId: null, index: -1, count: sections.length, progress: store.progress };
 
   const disposers: Array<() => void> = [];
@@ -154,10 +169,12 @@ function start(pathname: string) {
 
   function onScroll() {
     const next = storyProgress();
-    if (next !== store.progress) {
-      store = { ...store, progress: next };
-      notify();
-    }
+    if (next === store.progress) return;
+    // Mutated in place, not replaced: `getSnapshot` hands React the same
+    // object, so a scroll cannot re-render anyone. Safe because `start()` has
+    // already swapped `store` off the shared `FALLBACK` above.
+    store.progress = next;
+    for (const listener of progressListeners) listener();
   }
 
   // Section midpoints are read once per layout change rather than once per
@@ -190,6 +207,7 @@ function start(pathname: string) {
   teardown = () => {
     for (const dispose of disposers) dispose();
     centres = [];
+    sectionIds = [];
     startedPath = null;
     teardown = null;
   };
@@ -208,15 +226,60 @@ function getSnapshot(pathname: string): Store {
   return store.path === pathname ? store : FALLBACK;
 }
 
-function getServerSnapshot(): Store {
-  return FALLBACK;
+function getServerTone(): SectionTone {
+  return FALLBACK.tone;
 }
 
-export function useSceneProgress(): SceneProgress {
+/**
+ * The tone of whichever section sits under the reader's eyeline.
+ *
+ * Returns the primitive rather than the store object so a `progress` change can
+ * never wake a React render — and so mounting this is what starts the single
+ * observer every other reader here depends on.
+ */
+export function useSceneTone(): SectionTone {
   const pathname = usePathname();
 
   const subscribeFn = useCallback((onStoreChange: () => void) => subscribe(pathname, onStoreChange), [pathname]);
-  const getSnapshotFn = useCallback(() => getSnapshot(pathname), [pathname]);
+  const getSnapshotFn = useCallback(() => getSnapshot(pathname).tone, [pathname]);
 
-  return useSyncExternalStore(subscribeFn, getSnapshotFn, getServerSnapshot);
+  return useSyncExternalStore(subscribeFn, getSnapshotFn, getServerTone);
+}
+
+/**
+ * Current story progress, 0–1, read without subscribing.
+ *
+ * For frame loops: `<ScrollPhysics>` polls this once per frame and springs
+ * toward it. The observer is already running because `SceneRoot` above it calls
+ * `useSceneTone`.
+ */
+export function getSceneProgress(): number {
+  return store.progress;
+}
+
+/**
+ * `progress`, re-centred on one section: ~0 at that section's own eyeline,
+ * ~-1 at the previous section's, ~+1 at the next's. Lets `<ScrollVeil>`
+ * derive a per-section fade from the exact number the scene already
+ * computes, instead of measuring its own scroll transit (S14.1).
+ */
+export function getLocalSectionProgress(sectionId: string): number {
+  const index = sectionIds.indexOf(sectionId);
+  if (index < 0 || store.count < 2) return 0;
+  return store.progress * (store.count - 1) - index;
+}
+
+/**
+ * Notification that `progress` moved, delivered outside React.
+ *
+ * Only the reduced-motion path needs it: there the canvas runs on
+ * `frameloop="demand"` and has no frame in which to poll, so scroll has to wake
+ * the renderer itself. Adds no listener to the DOM — it hangs off the one
+ * `scroll` handler this module already owns.
+ */
+export function subscribeSceneProgress(onProgressChange: () => void): () => void {
+  progressListeners.add(onProgressChange);
+  return () => {
+    progressListeners.delete(onProgressChange);
+  };
 }

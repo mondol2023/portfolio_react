@@ -41,6 +41,13 @@ const DEFAULT_NODE_SCALE = 0.85;
 /** Base radius a node's icosahedron is drawn at before the proficiency/hover multiplier. */
 const NODE_UNIT = 0.22;
 
+/**
+ * `budget.particles` counts motes for the site-wide room field — sparse, large,
+ * slow. This shell is a close-up and wants the opposite grain, so it scales the
+ * one budget rather than adding a second field to `SceneBudget`.
+ */
+const SHELL_DENSITY = 4;
+
 interface SkillGalaxySceneProps {
   active: boolean;
   budget: SceneBudget;
@@ -103,7 +110,7 @@ function Core({ budget, pointer, tone, toneSoft, skills, selectedId, onSelect, r
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const dust = useMemo(
-    () => sphericalCloud(Math.round(budget.particles * 0.4), { seed: 23, inner: 3, outer: 4.2, flatten: 0.8 }),
+    () => sphericalCloud(Math.round(budget.particles * SHELL_DENSITY), { seed: 23, inner: 3, outer: 4.2, flatten: 0.8 }),
     [budget.particles],
   );
 

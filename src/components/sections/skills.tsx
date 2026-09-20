@@ -2,7 +2,7 @@ import { Layers } from "lucide-react";
 
 import { Reveal } from "@/components/motion/reveal";
 import { SkillGalaxy } from "@/components/skills/skill-galaxy";
-import { TechChain } from "@/components/skills/tech-chain";
+import { SkillsVariantSwitch } from "@/components/skills/skills-variant-switch";
 import { DemoBadge } from "@/components/ui/demo-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -50,7 +50,7 @@ export function Skills({ skills }: { skills: Skill[] }) {
             description="Skills added in the admin panel appear here as part of the chain."
           />
         ) : (
-          <TechChain skills={skills} />
+          <SkillsVariantSwitch skills={skills} />
         )}
       </Reveal>
 

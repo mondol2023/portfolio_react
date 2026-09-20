@@ -1,10 +1,30 @@
+import { useFrame } from "@react-three/fiber";
+import { useRef } from "react";
+import * as THREE from "three";
+
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import type { ScenePalette } from "@/lib/experience/scene-palette";
+import { sceneTime } from "@/lib/experience/scene-timer";
+import type { SceneryDefinition, ThemedIntensity } from "@/lib/experience/scenery";
 
 interface SceneLightingProps {
   palette: ScenePalette;
   budget: SceneBudget;
+  scenery: SceneryDefinition;
 }
+
+/** The key's rest position — orbited around when `scenery.lights.keyOrbit` is set. */
+const KEY_BASE_POSITION = new THREE.Vector3(3.6, 4.4, 4.2);
+/**
+ * Built once: the axis a moving key turns around (§4.2, §9). Not simply world
+ * up — `crossVectors(worldUp, toScene)` gives the horizontal axis perpendicular
+ * to both "up" and the key's own direction to the origin, so the orbit sweeps
+ * the light across the scene rather than spinning it in place around Y.
+ */
+const KEY_ORBIT_AXIS = new THREE.Vector3()
+  .crossVectors(new THREE.Vector3(0, 1, 0), KEY_BASE_POSITION.clone().negate().normalize())
+  .normalize();
+const scratchKeyQuaternion = new THREE.Quaternion();
 
 /**
  * One coherent lighting rig, shared by every section's objects: a soft key
@@ -21,22 +41,53 @@ interface SceneLightingProps {
  * it and needs a strong key with heavy ambient to keep geometry from reading
  * as a dark smudge, while a near-black page needs the opposite — low ambient
  * and a hot rim — or every object dissolves into the background.
+ *
+ * Phase E (SCENERY_SYSTEM_PLAN.md §4.1, §13): every intensity below now comes
+ * from `scenery.lights` instead of a hardcoded ternary, so a later scenery
+ * re-times the rig by supplying different data, never a new branch here.
  */
-export function SceneLighting({ palette, budget }: SceneLightingProps) {
+export function SceneLighting({ palette, budget, scenery }: SceneLightingProps) {
   const { dark } = palette;
+  const { lights } = scenery;
+  const pick = (themed: ThemedIntensity) => (dark ? themed.dark : themed.light);
+
+  const keyRef = useRef<THREE.DirectionalLight>(null);
+
+  // A no-op whenever `keyOrbit` is null (every scenery but observatory): one
+  // ref check per frame, no allocation. `sceneTime.elapsed` already carries
+  // the active scenery's timescale (S6), so the orbit slows with everything
+  // else in `garden` and speeds up in `blueprint` for free.
+  useFrame(() => {
+    const orbit = lights.keyOrbit;
+    const key = keyRef.current;
+    if (!orbit || !key) return;
+    scratchKeyQuaternion.setFromAxisAngle(KEY_ORBIT_AXIS, sceneTime.elapsed * orbit.speed);
+    key.position.copy(KEY_BASE_POSITION).applyQuaternion(scratchKeyQuaternion);
+  });
 
   return (
     <>
-      <ambientLight intensity={dark ? 0.22 : 0.58} color={palette.wash} />
+      <ambientLight intensity={pick(lights.ambient)} color={palette.wash} />
+
+      {/* Sky/ground bounce so matte surfaces gain form instead of reading flat
+          under ambient alone — replaces a third of the old ambient (§4.1). */}
+      {lights.hemisphere && (
+        <hemisphereLight
+          intensity={lights.hemisphere.intensity}
+          color={palette.wash}
+          groundColor={palette.deep}
+        />
+      )}
 
       {/* Key. The only shadow caster, and only where the budget allows one:
           a second render pass per frame buys inter-object shadowing that is
           worth it on a desktop GPU and nowhere else. */}
       <directionalLight
-        position={[3.6, 4.4, 4.2]}
-        intensity={dark ? 1.3 : 1.6}
+        ref={keyRef}
+        position={[KEY_BASE_POSITION.x, KEY_BASE_POSITION.y, KEY_BASE_POSITION.z]}
+        intensity={pick(lights.key)}
         color={palette.key}
-        castShadow={budget.shadows}
+        castShadow={budget.shadows && !scenery.shadowsDisabled}
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0006}
         shadow-normalBias={0.02}
@@ -48,9 +99,28 @@ export function SceneLighting({ palette, budget }: SceneLightingProps) {
         shadow-camera-bottom={-7}
       />
 
+      {/* Observatory's cone on the hero sculpture (§4.2, §9): a static light
+          reads polished metal as dead metal, so this is the one place besides
+          the key that earns an animated/shaped light. Targets the origin by
+          default (three.js's un-added `SpotLight.target`), which is exactly
+          where the hero sculpture's own group sits (`hero-sculpture.tsx`). */}
+      {lights.spot && (
+        <spotLight
+          position={[2.6, 3.4, 3.4]}
+          angle={0.35}
+          penumbra={0.8}
+          intensity={pick(lights.spot)}
+          color={palette.key}
+          distance={12}
+          decay={2}
+          castShadow={budget.shadows && !scenery.shadowsDisabled}
+          shadow-mapSize={[1024, 1024]}
+        />
+      )}
+
       {/* Fill: weak, from the opposite corner, tinted rather than grey so the
           shadow side still belongs to the section rather than going neutral. */}
-      <directionalLight position={[-4.5, -1.6, -2.4]} intensity={dark ? 0.32 : 0.3} color={palette.fill} />
+      <directionalLight position={[-4.5, -1.6, -2.4]} intensity={pick(lights.fill)} color={palette.fill} />
 
       {/* Rim/back light — what separates a silhouette from the background, and
           the one place the accent is allowed to run at full strength. Carries
@@ -58,11 +128,11 @@ export function SceneLighting({ palette, budget }: SceneLightingProps) {
           deliberately darker than the paper behind them, and without a lit
           leading edge a dark slab on near-white is a hole rather than a
           surface. */}
-      <directionalLight position={[-1.5, 2.2, -5.5]} intensity={dark ? 0.9 : 0.64} color={palette.accent} />
+      <directionalLight position={[-1.5, 2.2, -5.5]} intensity={pick(lights.rim)} color={palette.accent} />
 
       {/* The single accent point, close enough to fall off visibly across a
           section's geometry rather than reading as more ambient. */}
-      <pointLight position={[-2, 1, -4]} intensity={dark ? 0.75 : 0.45} color={palette.accent} distance={14} decay={2} />
+      <pointLight position={[-2, 1, -4]} intensity={pick(lights.point)} color={palette.accent} distance={14} decay={2} />
     </>
   );
 }

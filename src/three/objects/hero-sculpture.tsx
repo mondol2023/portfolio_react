@@ -6,15 +6,21 @@ import * as THREE from "three";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
 
+import { sceneScroll } from "@/lib/experience/scene-scroll";
+import { sceneTime } from "@/lib/experience/scene-timer";
+
+import { sceneSectionEnvelope, sceneSectionProgress } from "../scene/camera-rig";
+import { HERO_SCULPTURE_RADIUS } from "../scene/geometry";
+
 interface HeroSculptureProps {
   tone: string;
   toneSoft: string;
   pointer: { current: { x: number; y: number } };
   reducedMotion: boolean;
-  /** 0 at rest in Hero, 1 once the camera has fully arrived at About. */
-  heroProgress: number;
-  /** 0 while resident in Hero/About, 1 once the camera has moved on toward Skills — fades the sculpture out. */
-  exitProgress: number;
+  /** Hero's own waypoint index — its span drives the sculpture's scroll rotation. */
+  sectionIndex: number;
+  /** Whose exit ramp fades the sculpture out; Hero borrows the next section's. */
+  exitIndex: number;
   budget: SceneBudget;
 }
 
@@ -32,6 +38,16 @@ const BREATH_SPEED = (Math.PI * 2) / 6;
 const BREATH_AMOUNT = 0.03;
 
 /**
+ * The sculpture's live rotation, read by About's fragments so the shell they
+ * split from keeps spinning as one object through the handoff instead of
+ * About starting its own, independently-timed spin. A module-scope mutable
+ * ref rather than a store: this is one scene object informing another, not a
+ * DOM→3D bridge, so the store contract in `scene-interaction-store.ts` does
+ * not apply — same pattern as `scratchPosition` in `camera-rig.tsx`.
+ */
+export const heroShellSpin = { angle: 0 };
+
+/**
  * Hero's one sophisticated central object: a glass sphere (the primary focal
  * point) with a fixed-tilt metal ring (the one secondary element) — glass/
  * metal material contrast per the spec, rendered with real lights rather than
@@ -45,17 +61,23 @@ export function HeroSculpture({
   toneSoft,
   pointer,
   reducedMotion,
-  heroProgress,
-  exitProgress,
+  sectionIndex,
+  exitIndex,
   budget,
 }: HeroSculptureProps) {
   const groupRef = useRef<THREE.Group>(null);
   const idleAngle = useRef(0);
   const tilt = useRef({ x: 0, y: 0 });
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     const group = groupRef.current;
     if (!group) return;
+
+    // Read per frame, not taken as a prop: scroll moves every frame, and
+    // re-rendering the canvas at that rate is what `<ScrollPhysics>` avoids.
+    // Raw, not enveloped — this tracks the camera's travel out of Hero exactly.
+    const heroProgress = sceneSectionProgress(sceneScroll.progress, sectionIndex);
+    const { exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, exitIndex);
 
     if (!reducedMotion) {
       idleAngle.current += delta * IDLE_SPEED;
@@ -74,8 +96,9 @@ export function HeroSculpture({
 
     group.rotation.y = idleAngle.current + tilt.current.y + scrollAngle;
     group.rotation.x = tilt.current.x;
+    heroShellSpin.angle = group.rotation.y;
 
-    const breathe = reducedMotion ? 1 : 1 + Math.sin(state.clock.elapsedTime * BREATH_SPEED) * BREATH_AMOUNT;
+    const breathe = reducedMotion ? 1 : 1 + Math.sin(sceneTime.elapsed * BREATH_SPEED) * BREATH_AMOUNT;
     // Recedes once the story has moved on to Skills — a scale fade, not an
     // abrupt unmount, so the hand-off to About's fragments stays continuous.
     const presence = 1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1);
@@ -87,7 +110,7 @@ export function HeroSculpture({
       {/* Primary focal object: a glass sphere — no transmission/env-map, so
           it stays cheap and correct on a transparent canvas background. */}
       <mesh>
-        <sphereGeometry args={[1, budget.segments, budget.segments]} />
+        <sphereGeometry args={[HERO_SCULPTURE_RADIUS, budget.segments, budget.segments]} />
         <meshPhysicalMaterial
           color={toneSoft}
           transparent

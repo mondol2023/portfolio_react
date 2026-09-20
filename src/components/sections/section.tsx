@@ -55,7 +55,7 @@ export function Section({
       data-tone-anchor={tone ? "" : undefined}
       className={cn("scroll-mt-24 py-20 sm:py-28", className)}
     >
-      <ScrollVeil exit={exit} className="container-page">
+      <ScrollVeil exit={exit} sectionId={id} className="container-page">
         {children}
       </ScrollVeil>
     </section>

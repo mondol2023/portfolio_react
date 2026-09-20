@@ -15,16 +15,18 @@ import type { Transition } from "motion/react";
  */
 
 export const SPRING = {
-  /** Cursor and pointer followers — near-instant, no visible overshoot. */
-  cursor: { stiffness: 900, damping: 45, mass: 0.35 },
-  /** Trailing ring behind the cursor dot — visibly lags, then settles. */
+  /** Light-sweep and other slow pointer followers — visibly lags, then settles. */
   trail: { stiffness: 250, damping: 22, mass: 0.6 },
   /** Buttons and magnetic pulls — tight with a hint of bounce. */
   snappy: { stiffness: 420, damping: 28, mass: 0.8 },
   /** Panels and cards sliding into place — weightier, confident. */
   panel: { stiffness: 180, damping: 24, mass: 1 },
+  /** Markers that follow a selection — active nav item, a settling highlight. No overshoot. */
+  gentle: { stiffness: 220, damping: 30, mass: 0.9 },
   /** Scroll-bound rails — heavily damped so trackpad deltas do not jitter. */
   rail: { stiffness: 130, damping: 30, mass: 0.4 },
+  /** A reaction that unwinds slowly — ~600ms to rest, where `gentle` is back in ~270ms. */
+  settle: { stiffness: 45, damping: 13.5, mass: 1 },
   /** Camera and large scene moves — slow, cinematic, never bouncy. */
   camera: { stiffness: 90, damping: 26, mass: 1.2 },
 } as const satisfies Record<string, { stiffness: number; damping: number; mass: number }>;

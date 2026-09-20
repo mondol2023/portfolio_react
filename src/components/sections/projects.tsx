@@ -2,7 +2,7 @@ import { FolderOpen } from "lucide-react";
 
 import { Reveal } from "@/components/motion/reveal";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
-import { ProjectCard } from "@/components/projects/project-card";
+import { ProjectCardSwitch } from "@/components/projects/project-card-switch";
 import { ButtonLink } from "@/components/ui/button";
 import { DemoBadge } from "@/components/ui/demo-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -60,17 +60,22 @@ export function Projects({ projects, totalCount }: ProjectsProps) {
           />
         </Reveal>
       ) : (
-        <Stagger as="ul" step={0.06} className="mt-16 grid gap-6 lg:grid-cols-3">
-          <StaggerItem as="li" className="lg:col-span-2">
-            <ProjectCard project={lead} emphasis priority className="h-full" />
-          </StaggerItem>
-
-          {rest.map((project) => (
-            <StaggerItem as="li" key={project.id}>
-              <ProjectCard project={project} className="h-full" />
+        /* Beat 1 of the signature moment dims the deck (§5). The scene writes
+           the property from its own frame loop; the wrapper keeps that dim off
+           `Stagger`'s entrance opacity, and with no scene the fallback wins. */
+        <div data-signature-dim="" style={{ opacity: "var(--signature-dim, 1)" }}>
+          <Stagger as="ul" step={0.06} className="mt-16 grid gap-6 lg:grid-cols-3">
+            <StaggerItem as="li" className="lg:col-span-2">
+              <ProjectCardSwitch project={lead} emphasis priority className="h-full" />
             </StaggerItem>
-          ))}
-        </Stagger>
+
+            {rest.map((project) => (
+              <StaggerItem as="li" key={project.id}>
+                <ProjectCardSwitch project={project} className="h-full" />
+              </StaggerItem>
+            ))}
+          </Stagger>
+        </div>
       )}
 
       {/* Hands this section's data to the persistent 3D scene; renders nothing. */}

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { TechTile } from "@/components/ui/tech-tile";
+import { clearHoveredSkill, publishHoveredSkill } from "@/lib/store/scene-interaction-store";
 import type { Skill } from "@/lib/types/content";
 import { cn } from "@/lib/utils/cn";
 
@@ -16,6 +17,12 @@ import { cn } from "@/lib/utils/cn";
  * takes twice as long as a row of 10 and both travel at the same
  * pixels-per-second. Pills vary in width by maybe 30%, so this is an
  * approximation — but a stable one, and it costs nothing at runtime.
+ *
+ * Hovering a pill also publishes its id to `scene-interaction-store`, which is
+ * how the 3D skill graph behind the page learns what the reader is looking at
+ * (the canvas is `pointer-events-none` and cannot raycast for itself). The
+ * writers are imperative store calls, not state — a hover here must not
+ * re-render a row, for the same reason selection may not resize one.
  *
  * Selection is drawn with `transform: scale()` alone. Growing a pill by its box
  * — padding, width, an extra label — would change the track's width, and the
@@ -96,6 +103,12 @@ export function TechMarquee({
                 <button
                   type="button"
                   onClick={(event) => onSelect(skill.id, event.currentTarget)}
+                  onPointerEnter={() => publishHoveredSkill(skill.id)}
+                  onPointerLeave={() => clearHoveredSkill(skill.id)}
+                  // Keyboard reaches the same reaction; duplicates are not
+                  // focusable, so only the real pills can fire these.
+                  onFocus={() => publishHoveredSkill(skill.id)}
+                  onBlur={() => clearHoveredSkill(skill.id)}
                   aria-pressed={active}
                   tabIndex={duplicate ? -1 : undefined}
                   className={cn(

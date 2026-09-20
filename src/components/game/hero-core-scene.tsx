@@ -15,6 +15,13 @@ import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
  * import only pulls in the module it points at, not its whole directory.
  */
 
+/**
+ * `budget.particles` counts motes for the site-wide room field — sparse, large,
+ * slow. This core is a close-up and wants the opposite grain, so it scales the
+ * one budget rather than adding a second field to `SceneBudget`.
+ */
+const SHELL_DENSITY = 10;
+
 interface HeroCoreSceneProps {
   active: boolean;
   budget: SceneBudget;
@@ -57,20 +64,23 @@ function Core({ budget, pointer, tone, toneSoft, reducedMotion }: CoreProps) {
   // mid-scene, and the server/client budget mismatch on first paint would
   // otherwise show up as a visible pop. See `random.ts`.
   const dust = useMemo(
-    () => sphericalCloud(budget.particles, { seed: 7, inner: 1.8, outer: 3.2, flatten: 0.65 }),
+    () => sphericalCloud(budget.particles * SHELL_DENSITY, { seed: 7, inner: 1.8, outer: 3.2, flatten: 0.65 }),
     [budget.particles],
   );
 
-  // The high tier's `postProcessing` budget has no bloom pass to spend it on
-  // here (no post-processing package is installed) — it buys a second, denser
-  // inner dust shell instead, which reads as "richer" without adding a
-  // dependency for one scene.
+  // A second, denser inner shell only the top tier pays for — it reads as
+  // "richer" without a post pass, which D5 rules out anyway.
   const halo = useMemo(
     () =>
-      budget.postProcessing
-        ? sphericalCloud(Math.round(budget.particles * 0.3), { seed: 11, inner: 1.1, outer: 1.6, flatten: 0.8 })
+      budget.tier === "high"
+        ? sphericalCloud(Math.round(budget.particles * SHELL_DENSITY * 0.3), {
+            seed: 11,
+            inner: 1.1,
+            outer: 1.6,
+            flatten: 0.8,
+          })
         : null,
-    [budget.particles, budget.postProcessing],
+    [budget.particles, budget.tier],
   );
 
   useFrame((_state, delta) => {

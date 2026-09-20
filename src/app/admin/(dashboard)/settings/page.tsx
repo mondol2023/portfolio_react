@@ -32,6 +32,30 @@ const ANIMATION_GROUPS: readonly AnimationSection[] = [
         description:
           "The camera dollying between sections as you scroll. Off holds it still at the hero framing.",
       },
+      {
+        id: "three-cursor",
+        name: "Cursor aura",
+        description:
+          "A soft glow that follows the pointer and blooms on hover. Fine pointers only; off restores a bare system cursor.",
+      },
+      {
+        id: "three-drifters",
+        name: "Drifting objects",
+        description:
+          "Small shapes crossing the frame on slow lanes in front of the scene. On a mouse they can be picked up and thrown; they swing back to their lane on release.",
+      },
+      {
+        id: "three-signature",
+        name: "Signature moment",
+        description:
+          "The one authored set piece, between Projects and Experience: the gallery collapses into the lead panel and breaks open into the next room. Scroll-scrubbed, once per session.",
+      },
+      {
+        id: "three-scenery",
+        name: "Scenery",
+        description:
+          "The header's world picker. Off hides the control and pins every visitor to Atelier, the site's default look.",
+      },
     ],
   },
 ];

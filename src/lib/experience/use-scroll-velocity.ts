@@ -18,6 +18,14 @@ import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
  * Under reduced motion the value is held at 0 so anything driven by it (a
  * particle stream, a camera dolly) reads as calm rather than merely slower.
  */
+/**
+ * Above this normalised velocity, pointer-driven motion suspends rather than
+ * keeps integrating through a fast scroll. One gate, one threshold constant
+ * (§10): card tilt reads it here (S14.3), the cursor aura and raycaster read
+ * the same constant in later phases.
+ */
+export const SCROLL_SUSPEND_VELOCITY = 0.5;
+
 export function useScrollVelocity(target?: React.RefObject<HTMLElement | null>): MotionValue<number> {
   const reducedMotion = useMotionPreference();
   const { scrollYProgress } = useScroll(target ? { target, offset: ["start end", "end start"] } : undefined);

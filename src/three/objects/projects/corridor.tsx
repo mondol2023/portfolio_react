@@ -6,91 +6,36 @@ import * as THREE from "three";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import { seededRandom } from "@/lib/experience/random";
+import { contentSafeFraction, gutterPixels } from "@/lib/experience/scene-layout";
 import type { ScenePalette } from "@/lib/experience/scene-palette";
 import {
   SCENE_SMOOTHING,
+  clampDelta,
   damp,
   easeOutCubic,
   springStep,
   stagger,
   type SpringState,
 } from "@/lib/experience/scene-motion";
+import { sceneScroll } from "@/lib/experience/scene-scroll";
+import { signature } from "@/lib/experience/scene-signature";
+import { sceneTime } from "@/lib/experience/scene-timer";
 import type { Project } from "@/lib/types/content";
 
-import { glowTexture, roundedSlabGeometry } from "../scene/geometry";
+import { sceneSectionEnvelope } from "../../scene/camera-rig";
+import { glowTexture, roundedSlabGeometry } from "../../scene/geometry";
+import { buildSlabs, CLOSED_STEP, FAR_DIM, SLAB_DEPTH, SLAB_HEIGHT, SLAB_WIDTH, WALL_LIMIT } from "./layout";
 
-interface ProjectPanelsProps {
+export interface CorridorProps {
   projects: Project[];
   palette: ScenePalette;
   budget: SceneBudget;
   reducedMotion: boolean;
   pointer: { current: { x: number; y: number } };
-  /** 0 at rest in Skills, 1 once the camera has fully arrived at Projects. */
-  entryProgress: number;
-  /** 0 while resident in Projects, 1 once the camera has moved on toward Experience. */
-  exitProgress: number;
+  /** This section's waypoint index: `entry` opens the corridor, `exit` closes it again. */
+  sectionIndex: number;
 }
 
-interface WallSlab {
-  project: Project;
-  /** -1 mounts on the left wall, +1 on the right. */
-  side: 1 | -1;
-  /** Depth in the corridor's own frame. Screen placement is resolved per frame. */
-  z: number;
-  /** Distance off the eyeline as a fraction of the viewport half-height — converges with depth. */
-  lift: number;
-  /** Size relative to the nearest panel. */
-  scale: number;
-  /** Yaw when the panel is open — angled off its wall, raking toward the camera. */
-  open: number;
-  /** Yaw when flush with its wall: edge-on to the camera, a lit sliver and nothing more. */
-  closed: number;
-  color: THREE.Color;
-  metal: boolean;
-}
-
-/** Slab face, in metres-ish scene units. */
-const SLAB_WIDTH = 1.9;
-const SLAB_HEIGHT = 1.25;
-const SLAB_DEPTH = 0.08;
-
-/** Depth of the nearest slab, and the step between successive ones. */
-const WALL_FIRST_Z = -0.6;
-const WALL_PITCH = 2.8;
-
-/**
- * How far the near panel rides off the eyeline, and how fast that offset
- * decays with depth. This is where the corridor's vanishing point actually
- * comes from: horizontally the panels are pinned into the page's gutters (see
- * `panelFrac` below), so it is the *vertical* convergence toward the eyeline —
- * together with each panel being smaller, lighter and dimmer than the one in
- * front of it — that reads as receding space.
- */
-const LIFT_NEAR = 0.34;
-const LIFT_FALLOFF = 0.62;
-/** Each panel is a little smaller than the one in front, on top of perspective. */
-const SCALE_FALLOFF = 0.06;
-/** How much further into the fog each successive panel sits. */
-const FAR_DIM = 0.13;
-
-/** How far off its wall an open panel rakes. Enough to catch the key light, never enough to face front. */
-const TOE_IN = THREE.MathUtils.degToRad(52);
-const FLUSH = Math.PI / 2;
-/** A closed panel also sits further out, so opening reads as stepping off the wall. */
-const CLOSED_STEP = 0.3;
-
-/**
- * The page's own measurements, which the corridor has to compose around.
- *
- * The DOM project grid is opaque and the canvas sits behind it at `z-index:
- * -8`, so every part of this scene that lands inside the content column is
- * simply not in the composition. `CONTENT_MAX_PX` is the `container-page`
- * max-width and `CONTENT_PAD_PX` its inner padding; together they give the
- * fraction of the viewport half-width the cards occupy, and therefore the
- * gutter the corridor gets to stand in.
- */
-const CONTENT_MAX_PX = 1216;
-const CONTENT_PAD_PX = 40;
 /** How far outboard of the content edge a panel's centre is pinned. */
 const PANEL_MARGIN = 0.2;
 const PANEL_FRAC_MIN = 0.9;
@@ -165,59 +110,80 @@ const HOVER_TURN = THREE.MathUtils.degToRad(8);
 const IDLE_SPEED = 0.34;
 const IDLE_SWING = THREE.MathUtils.degToRad(0.7);
 
-/** Wall panels a tier will draw. Depth, not headcount, is what makes the corridor read. */
-const WALL_LIMIT: Record<SceneBudget["tier"], number> = { low: 2, mid: 3, high: 4 };
+/* ── The signature moment (§5). Nothing below runs outside its window. ────── */
+
+/** Where the committed wall stands: arm's length, filling the frame — beat 2. */
+const COVER_DEPTH = 1.5;
+/**
+ * How much more than the frame it covers — generous, because the camera is
+ * still taking parallax and a sliver of Experience past the edge gives it away.
+ */
+const COVER_FRAC = 1.45;
+/** What is left of a corridor panel by the time it has been folded into the wall's edge. */
+const CONVERGE_SCALE = 0.25;
+/** How far the corridor's dim takes the other panels toward `palette.deep`. */
+const VEIL_DEPTH = 0.85;
+
+/** Tiles the wall breaks into. `low` never shatters; it dissolves instead. */
+const SHARD_GRID: Record<SceneBudget["tier"], readonly [number, number]> = {
+  low: [0, 0],
+  mid: [4, 3],
+  high: [5, 4],
+};
+/** Spread as a fraction of the wall, and flight distance toward the reader. */
+const SHARD_SPREAD = 0.55;
+const SHARD_FLY = 3;
+const SHARD_SPIN = THREE.MathUtils.degToRad(34);
+/** Slight overlap, so no seams show before the break opens. */
+const SHARD_OVERLAP = 1.02;
 
 const scratchProjected = new THREE.Vector3();
+const scratchShardMatrix = new THREE.Matrix4();
+const scratchShardPosition = new THREE.Vector3();
+const scratchShardScale = new THREE.Vector3();
+const scratchShardQuaternion = new THREE.Quaternion();
+const scratchShardEuler = new THREE.Euler();
 
 /** 0 before `from`, 1 after `to` — one beat of the entrance, read off the shared ramp. */
 function phase(t: number, from: number, to: number): number {
   return THREE.MathUtils.clamp((t - from) / (to - from), 0, 1);
 }
 
-function buildSlabs(projects: Project[], palette: ScenePalette, limit: number): WallSlab[] {
-  const random = seededRandom(41);
-  const base = new THREE.Color(palette.surface);
-  const hsl = { h: 0, s: 0, l: 0 };
-  base.getHSL(hsl);
+interface Shard {
+  /** Cell centre in the wall's own rect, -0.5..0.5. */
+  u: number;
+  v: number;
+  /** Flight rate. Above 1 leaves early — the middle of the wall comes at the reader first. */
+  lead: number;
+  /** Tumble axis weights, seeded so the break is the same one every time. */
+  spin: readonly [number, number, number];
+}
 
-  const chosen = projects.slice(0, limit);
-  const span = Math.max(1, chosen.length - 1);
+/**
+ * Built from the tier's grid, not scattered: a surface breaking apart has to
+ * have been one surface first.
+ */
+function buildShards(tier: SceneBudget["tier"]): Shard[] {
+  const [cols, rows] = SHARD_GRID[tier];
+  if (cols === 0 || rows === 0) return [];
 
-  return chosen.map((project, index) => {
-    const side: 1 | -1 = index % 2 === 0 ? -1 : 1;
-    const metal = index % 3 === 1;
+  const random = seededRandom(97);
+  const shards: Shard[] = [];
 
-    // Every panel stays inside the section's own hue: lightness and chroma
-    // vary, the hue never does. The previous build hashed `project.type` into
-    // an arbitrary hue offset, which turned the deck into exactly the rainbow
-    // the brief rules out — and meant the section's colour identity changed
-    // whenever an editor retyped a project's category.
-    //
-    // The lightness ramp is what gives the corridor its near-to-far read: the
-    // panel nearest the camera is the darkest and most present against a
-    // near-white page, and each one behind it steps lighter, meeting the fog
-    // rather than fighting it.
-    const color = new THREE.Color().setHSL(
-      hsl.h,
-      THREE.MathUtils.clamp(hsl.s * (metal ? 0.46 : 0.66), 0, 1),
-      palette.dark
-        ? THREE.MathUtils.lerp(0.24, 0.42, index / span)
-        : THREE.MathUtils.lerp(0.31, 0.52, index / span),
-    );
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const u = (col + 0.5) / cols - 0.5;
+      const v = (row + 0.5) / rows - 0.5;
+      shards.push({
+        u,
+        v,
+        lead: 1.35 - (Math.hypot(u, v) / 0.71) * 0.45,
+        spin: [(random() - 0.5) * 2, (random() - 0.5) * 2, (random() - 0.5) * 2],
+      });
+    }
+  }
 
-    return {
-      project,
-      side,
-      z: WALL_FIRST_Z - index * WALL_PITCH,
-      lift: LIFT_NEAR * Math.pow(LIFT_FALLOFF, index) + (random() - 0.5) * 0.03,
-      scale: 1 - index * SCALE_FALLOFF,
-      open: -side * TOE_IN,
-      closed: -side * FLUSH,
-      color,
-      metal,
-    };
-  });
+  return shards;
 }
 
 /**
@@ -257,21 +223,24 @@ function buildSlabs(projects: Project[], palette: ScenePalette, limit: number): 
  * so it settles with a touch of genuine overshoot. Both are pointer-reactive
  * rather than ambient, so both are skipped entirely under reduced motion.
  */
-export function ProjectPanels({
+export function Corridor({
   projects,
   palette,
   budget,
   reducedMotion,
   pointer,
-  entryProgress,
-  exitProgress,
-}: ProjectPanelsProps) {
+  sectionIndex,
+}: CorridorProps) {
   const ranked = useMemo(() => [...projects].sort((a, b) => a.order - b.order), [projects]);
   const lead = ranked[0];
   const slabs = useMemo(
     () => buildSlabs(ranked.slice(1), palette, WALL_LIMIT[budget.tier]),
     [ranked, palette, budget.tier],
   );
+  const shards = useMemo(() => buildShards(budget.tier), [budget.tier]);
+
+  // What the other panels dim toward during the moment's approach (§5 beat 1).
+  const deepColor = useMemo(() => new THREE.Color(palette.deep), [palette.deep]);
 
   // The far wall has to read against the page rather than sink into it: a
   // silhouette on a light page, a lit mass on a dark one.
@@ -308,6 +277,8 @@ export function ProjectPanels({
   const portalEdgeRef = useRef<THREE.Mesh>(null);
   const portalFaceMaterial = useRef<THREE.MeshStandardMaterial>(null);
   const portalEdgeMaterial = useRef<THREE.MeshStandardMaterial>(null);
+  const shardRef = useRef<THREE.InstancedMesh>(null);
+  const shardMaterial = useRef<THREE.MeshStandardMaterial>(null);
   const glowRef = useRef<THREE.Sprite>(null);
   const glowMaterial = useRef<THREE.SpriteMaterial>(null);
   const lightRef = useRef<THREE.PointLight>(null);
@@ -316,6 +287,9 @@ export function ProjectPanels({
   const hover = useRef<number[]>([]);
   const tiltX = useRef<SpringState>({ value: 0, velocity: 0 });
   const tiltY = useRef<SpringState>({ value: 0, velocity: 0 });
+  // Face colours are mutated in place while dimmed; this says whether they
+  // still need putting back once the moment has passed.
+  const veiled = useRef(false);
 
   // A fresh projects fetch changes the slab count — resize the per-slab
   // scratch state so stale entries never linger past a re-render.
@@ -327,23 +301,48 @@ export function ProjectPanels({
     const root = rootRef.current;
     const camera = state.camera;
     if (!root || !(camera instanceof THREE.PerspectiveCamera)) return;
-    const delta = Math.min(rawDelta, 1 / 30);
-    const time = state.clock.elapsedTime;
+    const delta = clampDelta(rawDelta);
+    const time = sceneTime.elapsed;
+
+    // Read per frame, not taken as a prop: scroll moves every frame, and
+    // re-rendering the canvas at that rate is what `<ScrollPhysics>` avoids.
+    const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
 
     const opening = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1);
-    const closing = THREE.MathUtils.smoothstep(
+
+    // How much of the boundary the signature moment owns (§5). At zero — off,
+    // out of window, reduced motion — everything below collapses to its
+    // pre-moment behaviour exactly.
+    const takeover = signature.active ? signature.takeover : 0;
+    const commit = signature.active ? signature.commit : 0;
+    const veil = signature.active ? signature.dim : 0;
+    const stillness = signature.active ? signature.hold : 0;
+    const breakOut = signature.active && signature.shatter ? signature.release : 0;
+
+    const ordinaryClose = THREE.MathUtils.smoothstep(
       THREE.MathUtils.clamp(exitProgress / EXIT_SPAN, 0, 1),
       0,
       1,
     );
+    // The moment replaces the ordinary shutter: the corridor is not switched
+    // off, it is folded into the wall, and only then does it go.
+    const closing = THREE.MathUtils.lerp(
+      ordinaryClose,
+      THREE.MathUtils.smoothstep(commit, 0.72, 1),
+      takeover,
+    );
     const presence = 1 - closing;
     // Opaque well before the panels finish opening, so the wave of light is
     // seen at full strength rather than through a fade.
-    const fade = THREE.MathUtils.smoothstep(entryProgress, 0, 0.3) * presence;
+    const entered = THREE.MathUtils.smoothstep(entryProgress, 0, 0.3);
+    const fade = entered * presence;
+    // The wall outlives the corridor — it only goes when its surface breaks.
+    const faceBreak = THREE.MathUtils.smoothstep(breakOut, 0.05, 0.45);
+    const wallFade = THREE.MathUtils.lerp(fade, entered * (1 - faceBreak), takeover);
 
     // Nothing to draw outside this section's span — skipping the subtree is
     // cheaper than drawing a corridor faded to nothing.
-    root.visible = fade > 0.01;
+    root.visible = fade > 0.01 || wallFade > 0.01 || takeover > 0.01;
     if (!root.visible) return;
 
     // The entrance in beats, all read off the same ramp so they cannot drift
@@ -357,19 +356,22 @@ export function ProjectPanels({
 
     // Entry brings the corridor forward to its resting depth; exit keeps it
     // moving the same way rather than reversing, so leaving the section reads
-    // as walking out the far end.
-    const targetTravel = depthIn * TRAVEL_IN + closing * TRAVEL_OUT - TRAVEL_IN;
+    // as walking out the far end. During the moment the corridor holds where
+    // it arrived and the camera does the travelling instead — two systems
+    // moving the same distance at once would read as neither.
+    const targetTravel = THREE.MathUtils.lerp(
+      depthIn * TRAVEL_IN + ordinaryClose * TRAVEL_OUT - TRAVEL_IN,
+      depthIn * TRAVEL_IN - TRAVEL_IN,
+      takeover,
+    );
     travel.current = reducedMotion
       ? targetTravel
       : damp(travel.current, targetTravel, SCENE_SMOOTHING.glide, delta);
     root.position.z = travel.current;
 
     // What the page leaves the corridor to stand in, measured this frame.
-    const halfPx = Math.max(1, state.size.width / 2);
-    const contentHalfPx =
-      Math.min(halfPx, CONTENT_MAX_PX / 2) - Math.min(CONTENT_PAD_PX, state.size.width * 0.05);
-    const safeFrac = THREE.MathUtils.clamp(contentHalfPx / halfPx, 0.4, 1);
-    const gutterPx = (1 - safeFrac) * halfPx;
+    const safeFrac = contentSafeFraction(state.size.width);
+    const gutterPx = gutterPixels(state.size.width);
     // One number carries the whole responsive story: how far the walls are
     // allowed to open. Full gutter, full rake; a narrow one and they stay
     // nearly flush, showing only their line of light; none and they are not
@@ -379,6 +381,22 @@ export function ProjectPanels({
 
     const halfAtUnit = Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5);
     const panelFrac = THREE.MathUtils.clamp(safeFrac + PANEL_MARGIN, PANEL_FRAC_MIN, PANEL_FRAC_MAX);
+
+    // Placed before the panels, because the panels collapse into it. At rest it
+    // is the corridor's far end; committed, it stands at arm's length sized from
+    // the *live* camera distance — the only way "fills the frame" stays true
+    // while the camera is still pushing in underneath it.
+    const restBack = (1 - markerIn) * PORTAL_APPROACH + ordinaryClose * PORTAL_RECEDE * (1 - takeover);
+    const coverLocalZ = camera.position.z - root.position.z - COVER_DEPTH;
+    const wallLocalZ = THREE.MathUtils.lerp(LEAD_Z - restBack, coverLocalZ, commit);
+    const wallHalfH = halfAtUnit * THREE.MathUtils.lerp(LEAD_DEPTH, COVER_DEPTH, commit);
+    const wallHalfW = wallHalfH * camera.aspect;
+    const wallSpanX = THREE.MathUtils.lerp(PORTAL_FRAC, COVER_FRAC, commit) * wallHalfW;
+    const wallSpanY = THREE.MathUtils.lerp(PORTAL_HEIGHT, COVER_FRAC, commit) * wallHalfH;
+    const wallY = THREE.MathUtils.lerp(PORTAL_CENTRE * wallHalfH, 0, commit);
+    // Panels are inside the wall's edge well before it has finished growing,
+    // so they never have to cross the camera plane to get there.
+    const converge = THREE.MathUtils.smoothstep(commit, 0, 0.9) * takeover;
 
     // Whichever slab the cursor is nearest, resolved in screen space once per
     // frame — a canvas behind `pointer-events-none` content can never raycast.
@@ -419,9 +437,11 @@ export function ProjectPanels({
       const next = damp(hovered, nearest === index ? 1 : 0, SCENE_SMOOTHING.tight, delta);
       hover.current[index] = next;
 
+      // The hold beat is stillness: a room that keeps breathing never reads
+      // as held.
       const breath = reducedMotion
         ? 0
-        : Math.sin(time * IDLE_SPEED + index * 1.7) * IDLE_SWING * settleIn * presence;
+        : Math.sin(time * IDLE_SPEED + index * 1.7) * IDLE_SWING * settleIn * presence * (1 - stillness);
 
       const yaw =
         THREE.MathUtils.lerp(slab.closed, slab.open, openness) -
@@ -441,6 +461,16 @@ export function ProjectPanels({
         slab.z,
       );
       group.scale.setScalar(slab.scale);
+
+      // §5 beat 2 — the rails converge on the wall's edges. Blended over the
+      // placement above, so panels leave from where the layout actually put them.
+      if (converge > 0) {
+        group.position.x = THREE.MathUtils.lerp(group.position.x, slab.side * wallSpanX * 0.92, converge);
+        group.position.y = THREE.MathUtils.lerp(group.position.y, wallY, converge);
+        group.position.z = THREE.MathUtils.lerp(slab.z, wallLocalZ, converge);
+        group.scale.setScalar(THREE.MathUtils.lerp(slab.scale, slab.scale * CONVERGE_SCALE, converge));
+      }
+
       // Local +Z is the panel's own face normal, so this lifts it off the
       // wall no matter which way the panel is currently turned.
       lift.position.z = next * HOVER_LIFT;
@@ -449,49 +479,98 @@ export function ProjectPanels({
       const face = faceMaterials.current[index];
       if (face) {
         face.opacity = fade * dim;
-        face.emissiveIntensity = 0.04 + next * 0.18;
+        face.emissiveIntensity = (0.04 + next * 0.18) * (1 - veil);
+        // Toward `palette.deep`, not toward the page: on a light background
+        // fading out reads as disappearing, not as the gallery going dark.
+        if (veil > 0.001 || veiled.current) face.color.copy(slab.color).lerp(deepColor, veil * VEIL_DEPTH);
       }
       const edge = edgeMaterials.current[index];
       if (edge) {
         // The line of light holds on further into the distance than the face
         // does — a corridor reads by its edges.
         edge.opacity = fade * THREE.MathUtils.lerp(dim, 1, 0.5);
-        edge.emissiveIntensity = (0.5 + next * 1.5) * dim;
+        edge.emissiveIntensity = (0.5 + next * 1.5) * dim * (1 - veil * 0.9);
       }
     });
 
+    veiled.current = veil > 0.001;
+
     const portal = portalRef.current;
     if (portal) {
-      const halfH = halfAtUnit * LEAD_DEPTH;
-      const halfW = halfH * camera.aspect;
-      const spanX = PORTAL_FRAC * halfW;
-      const spanY = PORTAL_HEIGHT * halfH;
-
       // Establishes early by coming forward out of the fog, and withdraws on
       // the way out rather than being cut — the corridor is left behind, not
-      // switched off.
-      const back = (1 - markerIn) * PORTAL_APPROACH + closing * PORTAL_RECEDE;
-      portal.position.set(0, PORTAL_CENTRE * halfH, LEAD_Z - back);
+      // switched off. Under the moment it does neither: it comes to meet the
+      // reader instead (placement resolved above, with the panels').
+      portal.position.set(0, wallY, wallLocalZ);
 
-      portalFaceRef.current?.scale.set(spanX * 2, spanY * 2, 1);
-      portalEdgeRef.current?.scale.set(spanX * 2 + PORTAL_EDGE * 2, spanY * 2 + PORTAL_EDGE * 2, 1);
-      glowRef.current?.position.set(0, spanY, 0.12);
-      glowRef.current?.scale.set(spanX * 1.6, spanY * 1.1, 1);
+      portalFaceRef.current?.scale.set(wallSpanX * 2, wallSpanY * 2, 1);
+      portalEdgeRef.current?.scale.set(
+        wallSpanX * 2 + PORTAL_EDGE * 2,
+        wallSpanY * 2 + PORTAL_EDGE * 2,
+        1,
+      );
+      glowRef.current?.position.set(0, wallSpanY, 0.12);
+      glowRef.current?.scale.set(wallSpanX * 1.6, wallSpanY * 1.1, 1);
 
       const faceMaterial = portalFaceMaterial.current;
       if (faceMaterial) {
-        faceMaterial.opacity = fade * THREE.MathUtils.lerp(0.5, 1, markerIn);
+        faceMaterial.opacity = wallFade * THREE.MathUtils.lerp(0.5, 1, markerIn);
         faceMaterial.emissiveIntensity = 0.02 + settleIn * 0.06;
       }
       const edgeMaterial = portalEdgeMaterial.current;
       if (edgeMaterial) {
-        edgeMaterial.opacity = fade * markerIn;
+        edgeMaterial.opacity = wallFade * markerIn;
         // Fog takes nearly half of this away at the wall's depth, which is the
         // point — what is left is a line, not a glare.
         edgeMaterial.emissiveIntensity = 0.45 + settleIn * 0.9;
       }
       if (glowMaterial.current) {
-        glowMaterial.current.opacity = fade * settleIn * (palette.dark ? 0.4 : 0.2);
+        // The glow marks the wall's top edge; once it is the frame, there is none.
+        glowMaterial.current.opacity =
+          fade * settleIn * (palette.dark ? 0.4 : 0.2) * (1 - commit);
+      }
+
+      // §5 beat 4: the surface breaks outward past the camera. The tiles are
+      // laid out exactly over the face they replace, so the swap at the top of
+      // the beat happens while the two are coincident and cannot be seen. They
+      // exist only here — outside the release the mesh is not drawn at all.
+      const shardMesh = shardRef.current;
+      if (shardMesh) {
+        shardMesh.visible = breakOut > 0.001 && shards.length > 0;
+        if (shardMesh.visible) {
+          const cellX = ((wallSpanX * 2) / SHARD_GRID[budget.tier][0]) * SHARD_OVERLAP;
+          const cellY = ((wallSpanY * 2) / SHARD_GRID[budget.tier][1]) * SHARD_OVERLAP;
+
+          shards.forEach((shard, index) => {
+            const flight = easeOutCubic(THREE.MathUtils.clamp(breakOut * shard.lead, 0, 1));
+            const spread = 1 + flight * SHARD_SPREAD;
+            scratchShardPosition.set(
+              shard.u * wallSpanX * 2 * spread,
+              shard.v * wallSpanY * 2 * spread,
+              flight * SHARD_FLY,
+            );
+            scratchShardEuler.set(
+              shard.spin[0] * flight * SHARD_SPIN,
+              shard.spin[1] * flight * SHARD_SPIN,
+              shard.spin[2] * flight * SHARD_SPIN,
+            );
+            scratchShardQuaternion.setFromEuler(scratchShardEuler);
+            scratchShardScale.set(cellX, cellY, 1);
+            scratchShardMatrix.compose(
+              scratchShardPosition,
+              scratchShardQuaternion,
+              scratchShardScale,
+            );
+            shardMesh.setMatrixAt(index, scratchShardMatrix);
+          });
+
+          shardMesh.instanceMatrix.needsUpdate = true;
+          if (shardMaterial.current) {
+            // Held opaque while they are still in front of the reader; gone by
+            // the time the camera has released backward into the new volume.
+            shardMaterial.current.opacity = entered * (1 - THREE.MathUtils.smoothstep(breakOut, 0.62, 1));
+          }
+        }
       }
     }
 
@@ -499,9 +578,14 @@ export function ProjectPanels({
       // Comes up last and barely moves afterwards: a five-percent breath on an
       // eighteen-second period, which is felt as the room being alive rather
       // than seen as an animation.
-      const pulse = reducedMotion ? 0 : Math.sin(time * IDLE_SPEED * 0.55) * 0.05 * settleIn * presence;
+      const pulse = reducedMotion
+        ? 0
+        : Math.sin(time * IDLE_SPEED * 0.55) * 0.05 * settleIn * presence * (1 - stillness);
+      // The gallery's light travels with the wall it exists to graze, so the
+      // committed panel is lit rather than left as a silhouette.
+      lightRef.current.position.z = THREE.MathUtils.lerp(LEAD_Z + 3, wallLocalZ + 2.2, commit);
       lightRef.current.intensity =
-        fade * (0.35 + settleIn * 0.65) * (palette.dark ? 2.8 : 1.7) * (1 + pulse);
+        wallFade * (0.35 + settleIn * 0.65) * (palette.dark ? 2.8 : 1.7) * (1 + pulse);
     }
 
     // Cursor sway on a real spring — it overshoots and settles, which a lerp
@@ -511,8 +595,11 @@ export function ProjectPanels({
       tiltX.current = { value: 0, velocity: 0 };
       tiltY.current = { value: 0, velocity: 0 };
     } else {
-      springStep(tiltX.current, THREE.MathUtils.clamp(-pointer.current.y, -1, 1) * MAX_TILT_X, "panel", delta);
-      springStep(tiltY.current, THREE.MathUtils.clamp(pointer.current.x, -1, 1) * MAX_TILT_Y, "panel", delta);
+      // Pulled to centre through the hold: beat 3 is one beat of quiet, and a
+      // room that still sways with the cursor is not quiet.
+      const sway = 1 - stillness;
+      springStep(tiltX.current, THREE.MathUtils.clamp(-pointer.current.y, -1, 1) * MAX_TILT_X * sway, "panel", delta);
+      springStep(tiltY.current, THREE.MathUtils.clamp(pointer.current.x, -1, 1) * MAX_TILT_Y * sway, "panel", delta);
     }
     root.rotation.x = tiltX.current.value;
     root.rotation.y = tiltY.current.value;
@@ -621,6 +708,34 @@ export function ProjectPanels({
             opacity={0}
           />
         </mesh>
+
+        {/* The same surface, in pieces. One draw call, laid out over the face
+            it replaces and only drawn during the break, so the section's
+            resting composition and its draw-call count are both unchanged.
+            Frustum culling is off because the instances leave the base
+            geometry's bounds entirely on their way past the camera. */}
+        {shards.length > 0 ? (
+          <instancedMesh
+            ref={shardRef}
+            args={[undefined, undefined, shards.length]}
+            geometry={geometry.portal}
+            frustumCulled={false}
+            visible={false}
+            dispose={null}
+          >
+            <meshStandardMaterial
+              ref={shardMaterial}
+              color={portalColor}
+              emissive={palette.accent}
+              emissiveIntensity={0.06}
+              metalness={0.25}
+              roughness={0.72}
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0}
+            />
+          </instancedMesh>
+        ) : null}
 
         {/* Stands in for a bloom pass: one sprite along the wall's lit edge, no
             second full-screen render and no new dependency. Composited

@@ -57,6 +57,51 @@ export function roundedSlabGeometry(
   return geometry;
 }
 
+/** Radius of Hero's glass sphere. Shared so About's fragments start on this
+ * exact shell rather than an independently seeded cloud that merely looks similar. */
+export const HERO_SCULPTURE_RADIUS = 1;
+
+/**
+ * Deterministic points spread evenly across a sphere's surface, plus each
+ * point's outward normal.
+ *
+ * Phase 14's transformation handoffs need two objects to agree on a shape
+ * without either file owning the other — Hero's shell breaking apart into
+ * About's fragments is the first case. A Fibonacci lattice (the golden-angle
+ * spiral) gives an even spread with no seed to keep in sync, unlike
+ * `seededRandom`: the same `count` always returns the same points, which is
+ * what lets a fragment's start position and rotation be *read from* the shell
+ * instead of generated independently and hoping it lines up.
+ */
+export function fibonacciSpherePoints(
+  count: number,
+  radius: number,
+): { position: THREE.Vector3; normal: THREE.Vector3 }[] {
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const points: { position: THREE.Vector3; normal: THREE.Vector3 }[] = [];
+
+  for (let i = 0; i < count; i += 1) {
+    const y = count <= 1 ? 0 : 1 - (i / (count - 1)) * 2;
+    const ringRadius = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = goldenAngle * i;
+    const normal = new THREE.Vector3(Math.cos(theta) * ringRadius, y, Math.sin(theta) * ringRadius);
+    points.push({ position: normal.clone().multiplyScalar(radius), normal });
+  }
+
+  return points;
+}
+
+/**
+ * The shallow, ordered arc About's fragments settle into — and the exact
+ * shape Skills' galaxy starts from. `t` runs -0.5..0.5 across the arc's span.
+ * Built once here so "fragments stop drifting and snap to lattice" is the
+ * same curve on both sides of that boundary, not two authored shapes that
+ * happen to read alike.
+ */
+export function arcSlotPosition(t: number): THREE.Vector3 {
+  return new THREE.Vector3(t * 3.2, Math.sin(t * Math.PI) * 0.35, -0.6);
+}
+
 /**
  * The soft radial sprite the scene uses instead of a bloom pass.
  *
@@ -91,4 +136,44 @@ export function glowTexture(): THREE.CanvasTexture | null {
   glow = new THREE.CanvasTexture(canvas);
   glow.colorSpace = THREE.SRGBColorSpace;
   return glow;
+}
+
+/**
+ * A fine drafting grid, tiled by `repeat`/`offset` rather than baked at scene
+ * scale — blueprint's plan sheets scroll it via `texture.matrix` in their own
+ * `useFrame` (§4.4's Matrix3 UV animation), so the bitmap itself only has to
+ * be one seamless tile. Cached at module scope for the same reason `glow` is:
+ * every plan sheet and schematic backdrop wants the identical texture.
+ */
+let grid: THREE.CanvasTexture | null = null;
+
+export function gridTexture(): THREE.CanvasTexture | null {
+  if (grid) return grid;
+  if (typeof document === "undefined") return null;
+
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+
+  context.strokeStyle = "rgba(255, 255, 255, 0.9)";
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(0, size - 0.5);
+  context.lineTo(size, size - 0.5);
+  context.moveTo(size - 0.5, 0);
+  context.lineTo(size - 0.5, size);
+  context.stroke();
+
+  grid = new THREE.CanvasTexture(canvas);
+  grid.colorSpace = THREE.SRGBColorSpace;
+  grid.wrapS = THREE.RepeatWrapping;
+  grid.wrapT = THREE.RepeatWrapping;
+  // The consumer drives `matrix` directly (`matrixAutoUpdate = false`) so its
+  // own `useFrame` can scroll the UVs without this module knowing about time.
+  grid.matrixAutoUpdate = false;
+  return grid;
 }

@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { GameModeToggle } from "@/components/game/game-mode-toggle";
+import { SceneryPicker } from "@/components/layout/scenery-picker";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { DURATION, EASE_OUT } from "@/components/motion/variants";
 import { NAV_ITEMS } from "@/lib/constants/navigation";
@@ -25,12 +26,14 @@ import { cn } from "@/lib/utils/cn";
 
 interface MobileMenuProps {
   activeSection: string | null;
+  /** The `three-scenery` admin flag — off omits the row entirely (S12). */
+  sceneryEnabled: boolean;
   className?: string;
 }
 
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function MobileMenu({ activeSection, className }: MobileMenuProps) {
+export function MobileMenu({ activeSection, sceneryEnabled, className }: MobileMenuProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -192,6 +195,13 @@ export function MobileMenu({ activeSection, className }: MobileMenuProps) {
                 <span className="label-mono">Mode</span>
                 <GameModeToggle />
               </div>
+
+              {sceneryEnabled ? (
+                <div className="flex items-center justify-between px-3 pt-3 pb-1">
+                  <span className="label-mono">Scenery</span>
+                  <SceneryPicker />
+                </div>
+              ) : null}
             </motion.div>
           </>
         ) : null}

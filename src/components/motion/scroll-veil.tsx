@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, useScroll, useTransform, type UseScrollOptions } from "motion/react";
-import { useRef, type ReactNode } from "react";
+import { motion, useMotionValue, useTransform } from "motion/react";
+import { useEffect, type ReactNode } from "react";
 
+import { getLocalSectionProgress, subscribeSceneProgress } from "@/lib/experience/use-scene-progress";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
 
@@ -15,28 +16,26 @@ import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
  * enter event, scrolling back up plays it in reverse. That symmetry is the
  * point: a section "hides" the same way it appeared.
  *
- * Four offsets, so the plateau in the middle is explicit:
+ * Driven by `getLocalSectionProgress` (S14.1) rather than its own `useScroll`
+ * target: the WebGL scene already turns document scroll into one continuous
+ * "story progress" number for camera choreography, and this section's veil
+ * reads the same number, just re-centred on itself, instead of opening a
+ * second scroll-measuring listener next to the scene's.
  *
- *   start end   the section's top touches the bottom of the viewport   → hidden
- *   start 55%   its top has risen past the middle                      → visible
- *   end 45%     its bottom has not yet risen past the middle           → visible
- *   end start   its bottom leaves the top of the viewport              → hidden
- *
- * Those four scroll positions are monotonically increasing for any element
- * height, so the interpolation never inverts on a short section.
+ * Local progress runs roughly -1 (previous section's eyeline) to 0 (this
+ * section's own) to +1 (next section's). Those four breakpoints keep the
+ * plateau in the middle explicit, and — because they are symmetric about 0 —
+ * the curve never inverts regardless of section height.
  */
 
-// Annotated rather than inferred: hoisting the array out of the `useScroll`
-// call loses the contextual type, and a bare `string[]` is not assignable to
-// the edge-string union.
-const OFFSET: UseScrollOptions["offset"] = ["start end", "start 55%", "end 45%", "end start"];
-
-/** Progress breakpoints matching the four offsets above, spaced evenly. */
-const STOPS = [0, 1 / 3, 2 / 3, 1];
+/** Local-progress breakpoints the fade is keyed to. */
+const RAKE = [-1, -0.35, 0.35, 1];
 
 interface ScrollVeilProps {
   children: ReactNode;
   className?: string;
+  /** DOM id of the `<Section>` this veil belongs to — its key into the shared story progress. */
+  sectionId: string;
   /**
    * Set false for the last section on a page. Its bottom edge never reaches the
    * top of the viewport, so the exit half of the curve would leave it stuck at
@@ -45,25 +44,31 @@ interface ScrollVeilProps {
   exit?: boolean;
 }
 
-export function ScrollVeil({ children, className, exit = true }: ScrollVeilProps) {
-  const ref = useRef<HTMLDivElement>(null);
+export function ScrollVeil({ children, className, sectionId, exit = true }: ScrollVeilProps) {
   const reducedMotion = useMotionPreference();
-  const { scrollYProgress } = useScroll({ target: ref, offset: OFFSET });
+  const local = useMotionValue(0);
 
-  const opacity = useTransform(scrollYProgress, STOPS, [0, 1, 1, exit ? 0 : 1]);
-  const y = useTransform(scrollYProgress, STOPS, [32, 0, 0, exit ? -32 : 0]);
+  useEffect(() => {
+    local.set(getLocalSectionProgress(sectionId));
+    return subscribeSceneProgress(() => {
+      local.set(getLocalSectionProgress(sectionId));
+    });
+  }, [sectionId, local]);
+
+  const opacity = useTransform(local, RAKE, [0, 1, 1, exit ? 0 : 1]);
+  const y = useTransform(local, RAKE, [32, 0, 0, exit ? -32 : 0]);
 
   /*
    * The server render has no scroll position, so binding these motion values
    * straight away would ship `opacity: 0` in the HTML — invisible to a reader
    * without JavaScript and to anything that reads the markup. They are applied
-   * from the first post-hydration render, by which point `useScroll` has
-   * measured for real.
+   * from the first post-hydration render, by which point the effect above has
+   * synced to the real story progress.
    */
   const animated = useHydrated() && !reducedMotion;
 
   return (
-    <motion.div ref={ref} className={className} style={animated ? { opacity, y } : undefined}>
+    <motion.div className={className} style={animated ? { opacity, y } : undefined}>
       {children}
     </motion.div>
   );

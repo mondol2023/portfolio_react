@@ -10,6 +10,11 @@ scratch in a future session; read this file first, resume at the first
 unchecked box.
 
 Sibling trackers, same convention, do not duplicate their scope here:
+- [IMMERSIVE_3D_WORLD_PLAN.md](IMMERSIVE_3D_WORLD_PLAN.md) — **Act II**, and the
+  live file: phases 0–12 below are complete, so new work resumes there. It
+  treats everything here as a binding foundation and covers what this plan did
+  not — section-to-section transformation, the signature moment, DOM-driven 3D
+  interaction, scroll physics, and the one shader budget.
 - [GAME_LAYER_PLAN.md](GAME_LAYER_PLAN.md) — the opt-in "Game Mode" floating
   world (`src/game`, `WorldLayer`, `GameHUD`). Stays exactly as-is. The
   cinematic scene below is a **different, always-available layer**: Game Mode

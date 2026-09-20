@@ -5,9 +5,11 @@ import Link from "next/link";
 
 import { GameModeToggle } from "@/components/game/game-mode-toggle";
 import { MobileMenu } from "@/components/layout/mobile-menu";
+import { SceneryPicker } from "@/components/layout/scenery-picker";
 import { DURATION, EASE_OUT } from "@/components/motion/variants";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NAV_ITEMS, SECTION_IDS } from "@/lib/constants/navigation";
+import { spring } from "@/lib/experience/springs";
 import { useActiveSection } from "@/lib/hooks/use-active-section";
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
 import { useScrollDirection } from "@/lib/hooks/use-scroll-direction";
@@ -27,9 +29,11 @@ import { cn } from "@/lib/utils/cn";
 interface SiteHeaderProps {
   /** Site owner's name — doubles as the wordmark. */
   name: string;
+  /** The `three-scenery` admin flag — off hides the picker everywhere (S12). */
+  sceneryEnabled: boolean;
 }
 
-export function SiteHeader({ name }: SiteHeaderProps) {
+export function SiteHeader({ name, sceneryEnabled }: SiteHeaderProps) {
   const { direction, isAtTop } = useScrollDirection();
   const activeSection = useActiveSection(SECTION_IDS);
   const reducedMotion = useMotionPreference();
@@ -84,10 +88,9 @@ export function SiteHeader({ name }: SiteHeaderProps) {
                           <motion.span
                             layoutId="nav-active"
                             className="absolute inset-0 -z-10 rounded-full bg-surface-hover"
-                            transition={{
-                              duration: reducedMotion ? 0.01 : DURATION.fast,
-                              ease: EASE_OUT,
-                            }}
+                            // Eases toward the new item rather than snapping — the marker is
+                            // a moving selection, not a state cut, so it gets a spring.
+                            transition={reducedMotion ? { duration: 0.01 } : spring("gentle")}
                           />
                         ) : null}
                         {item.label}
@@ -98,10 +101,17 @@ export function SiteHeader({ name }: SiteHeaderProps) {
               </ul>
             </nav>
 
-            {/* Separated from the links: a control, not a destination. */}
+            {/* Separated from the links: a control, not a destination. The
+                header's budget is three controls (S16) — a fourth would need
+                one of these to move into MobileMenu permanently. */}
             <GameModeToggle className="ml-1 hidden md:inline-flex" />
+            {sceneryEnabled ? <SceneryPicker className="ml-1 hidden md:inline-flex" /> : null}
             <ThemeToggle className="ml-1 hidden md:inline-flex" />
-            <MobileMenu activeSection={activeSection} className="md:hidden" />
+            <MobileMenu
+              activeSection={activeSection}
+              sceneryEnabled={sceneryEnabled}
+              className="md:hidden"
+            />
           </div>
         </div>
       </div>

@@ -5,12 +5,24 @@ import { useRef } from "react";
 import * as THREE from "three";
 
 import { SCENE_SMOOTHING, damp, easeInOutSine } from "@/lib/experience/scene-motion";
+import { sceneScroll } from "@/lib/experience/scene-scroll";
+import { signature } from "@/lib/experience/scene-signature";
 
 interface CameraRigProps {
-  /** Whole-page scroll fraction, 0–1 — the single story parameter driving the camera. */
-  progress: number;
+  /**
+   * The "three-camera-scroll" switch. Off holds the dolly at its rest framing
+   * (the Hero waypoint) while every section-scene still reads real scroll.
+   */
+  scrollEnabled: boolean;
   reducedMotion: boolean;
   pointer: { current: { x: number; y: number } };
+  /**
+   * Inspect mode (§6.3): while true, `OrbitControls` owns the camera and this
+   * rig must not touch it. On the frame this goes back to false, the rig
+   * blends from wherever the orbit left the camera back to the scroll-implied
+   * waypoint over `RELEASE_DURATION`, rather than snapping to it.
+   */
+  inspectActive: boolean;
 }
 
 interface Waypoint {
@@ -62,6 +74,11 @@ const PARALLAX_Y = 0.1;
 
 const scratchPosition = new THREE.Vector3();
 const scratchLookAt = new THREE.Vector3();
+const scratchArrivedPosition = new THREE.Vector3();
+const scratchArrivedQuaternion = new THREE.Quaternion();
+
+/** How long the hand-back from Inspect mode takes to land on the waypoint (§6.3). */
+const RELEASE_DURATION = 0.6;
 
 /** How many waypoints — and so how many DOM sections — the shared camera path covers. */
 export const SCENE_SECTION_COUNT = PATH.length;
@@ -124,13 +141,29 @@ export function sceneSectionEnvelope(progress: number, index: number): { entry: 
  * section a settled middle and a soft hand-off at each end, which is what
  * "calm → build → peak → release → calm" needs to be legible at all.
  */
-export function CameraRig({ progress, reducedMotion, pointer }: CameraRigProps) {
+export function CameraRig({ scrollEnabled, reducedMotion, pointer, inspectActive }: CameraRigProps) {
   const { camera } = useThree();
-  const lookAt = useRef(new THREE.Vector3());
   const parallax = useRef({ x: 0, y: 0 });
+  const wasInspecting = useRef(false);
+  const releaseFrom = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion } | null>(null);
+  const releaseElapsed = useRef(0);
 
   useFrame((_state, delta) => {
+    // Ceded entirely: `OrbitControls` (`inspect-controls.tsx`) owns the camera
+    // while Inspect mode is active, and this rig must not fight it for a
+    // single frame.
+    if (inspectActive) {
+      wasInspecting.current = true;
+      return;
+    }
+    if (wasInspecting.current) {
+      wasInspecting.current = false;
+      releaseFrom.current = { position: camera.position.clone(), quaternion: camera.quaternion.clone() };
+      releaseElapsed.current = 0;
+    }
+
     const span = PATH.length - 1;
+    const progress = scrollEnabled ? sceneScroll.progress : 0;
     const t = THREE.MathUtils.clamp(progress, 0, 1) * span;
     const i = Math.min(Math.floor(t), span - 1);
     const local = easeInOutSine(t - i);
@@ -146,10 +179,16 @@ export function CameraRig({ progress, reducedMotion, pointer }: CameraRigProps) 
     parallax.current.x = damp(parallax.current.x, targetX, SCENE_SMOOTHING.cinematic, delta);
     parallax.current.y = damp(parallax.current.y, targetY, SCENE_SMOOTHING.cinematic, delta);
 
+    // The signature moment's push and release (§5) — an offset on the path, not
+    // a second path, and zero at both ends of its window, so the rig stays the
+    // only thing deciding where the camera is.
+    // The corridor runs down -Z, so pushing toward the wall is subtraction.
+    const push = scrollEnabled ? signature.push : 0;
+
     scratchPosition.set(
       THREE.MathUtils.lerp(a.position[0], b.position[0], local) + parallax.current.x,
       THREE.MathUtils.lerp(a.position[1], b.position[1], local) + parallax.current.y,
-      THREE.MathUtils.lerp(a.position[2], b.position[2], local),
+      THREE.MathUtils.lerp(a.position[2], b.position[2], local) - push,
     );
     scratchLookAt.set(
       // The target counter-rotates a fraction of the parallax, so the cursor
@@ -159,14 +198,11 @@ export function CameraRig({ progress, reducedMotion, pointer }: CameraRigProps) 
       THREE.MathUtils.lerp(a.lookAt[2], b.lookAt[2], local),
     );
 
-    // Reduced motion still has to land in the right place — it just arrives
-    // without the trailing damped follow, the same contract `springOrCut`
-    // uses for DOM motion.
-    const factor = reducedMotion ? 1 : THREE.MathUtils.clamp(1 - Math.pow(SCENE_SMOOTHING.glide, delta), 0, 1);
-
-    camera.position.lerp(scratchPosition, factor);
-    lookAt.current.lerp(scratchLookAt, factor);
-    camera.lookAt(lookAt.current);
+    // Set, not damped: `sceneScroll.progress` arrives already spring-smoothed
+    // by `<ScrollPhysics>`, and a second filter on the same value would only
+    // stack lag onto weight that has already been applied.
+    camera.position.copy(scratchPosition);
+    camera.lookAt(scratchLookAt);
 
     if (camera instanceof THREE.PerspectiveCamera) {
       const targetFov = THREE.MathUtils.lerp(a.fov, b.fov, local);
@@ -177,6 +213,21 @@ export function CameraRig({ progress, reducedMotion, pointer }: CameraRigProps) 
         camera.fov = nextFov;
         camera.updateProjectionMatrix();
       }
+    }
+
+    // The hand-back from Inspect mode (§6.3): blend from the free-orbit pose
+    // toward the waypoint the rig just computed above, rather than cutting to
+    // it. `camera.position`/`camera.quaternion` already hold the "arrived"
+    // pose at this point, so they are the blend's target, captured before
+    // being overwritten by the blend itself.
+    if (releaseFrom.current) {
+      releaseElapsed.current += delta;
+      const t = easeInOutSine(Math.min(1, releaseElapsed.current / RELEASE_DURATION));
+      scratchArrivedPosition.copy(camera.position);
+      scratchArrivedQuaternion.copy(camera.quaternion);
+      camera.position.lerpVectors(releaseFrom.current.position, scratchArrivedPosition, t);
+      camera.quaternion.slerpQuaternions(releaseFrom.current.quaternion, scratchArrivedQuaternion, t);
+      if (t >= 1) releaseFrom.current = null;
     }
   });
 

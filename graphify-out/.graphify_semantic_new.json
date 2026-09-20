@@ -1,0 +1,1092 @@
+{
+  "nodes": [
+    {
+      "id": "three_d_experience_plan_act_i",
+      "label": "Act I - 3D Experience Foundation",
+      "file_type": "concept",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "immersive_3d_world_plan_act_ii",
+      "label": "Act II - Immersive 3D World",
+      "file_type": "concept",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "scenery_system_plan_act_iii",
+      "label": "Act III - Scenery System",
+      "file_type": "concept",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "game_layer_plan",
+      "label": "Game Layer - Interactive World Module",
+      "file_type": "concept",
+      "source_file": "GAME_LAYER_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "gamification_plan",
+      "label": "Gamification - Hybrid Implementation",
+      "file_type": "concept",
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_portfolio_cms",
+      "label": "Portfolio + CMS - Firebase Backend",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "src_game_readme",
+      "label": "Game Module - Public API",
+      "file_type": "document",
+      "source_file": "src/game/README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_phase_0_audit",
+      "label": "Phase 0 - Codebase Audit",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_phases_1_12",
+      "label": "Phases 1-12 - Foundation to Polish",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_phases_13_20",
+      "label": "Phases 13-20 - Transformation to Drifters",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_phase_21",
+      "label": "Phase 21 - Creative Direction Review",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_iii_phases_a_l",
+      "label": "Phases A-L - Scenery Plumbing to Review",
+      "file_type": "rationale",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "r3f_three_fiber",
+      "label": "React Three Fiber",
+      "file_type": "concept",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "drei_library",
+      "label": "Drei - R3F Helpers",
+      "file_type": "concept",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "three_js",
+      "label": "Three.js",
+      "file_type": "concept",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "gsap_scrolltrigger",
+      "label": "GSAP + ScrollTrigger",
+      "file_type": "concept",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "motion_framer",
+      "label": "Motion (Framer Motion)",
+      "file_type": "concept",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "zustand_store",
+      "label": "Zustand State Management",
+      "file_type": "concept",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "firebase_backend",
+      "label": "Firebase - Authentication & Firestore",
+      "file_type": "concept",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_hero_sculpture",
+      "label": "Hero Sculpture",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_about_fragments",
+      "label": "About Fragments",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_skill_galaxy",
+      "label": "Skill Galaxy",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_experience_timeline",
+      "label": "Experience Timeline",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_project_panels",
+      "label": "Project Panels - Corridor",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_i_contact_calm",
+      "label": "Contact - Calm",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_section_transformation",
+      "label": "Section-to-Section Transformation",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_signature_moment",
+      "label": "Signature Moment - Projects→Experience",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_scroll_physics",
+      "label": "Scroll Physics - SpringStep",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_skill_hover_reaction",
+      "label": "Skill Hover Reaction System",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_experience_architecture",
+      "label": "Experience Section - Architecture",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_ii_drifting_objects",
+      "label": "Drifting Objects with Grab",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_iii_scenery_atelier",
+      "label": "Scenery - Atelier (Default)",
+      "file_type": "rationale",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_iii_scenery_observatory",
+      "label": "Scenery - Observatory (Night)",
+      "file_type": "rationale",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_iii_scenery_garden",
+      "label": "Scenery - Garden (Organic)",
+      "file_type": "rationale",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "act_iii_scenery_blueprint",
+      "label": "Scenery - Blueprint (Technical)",
+      "file_type": "rationale",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "scene_root_canvas",
+      "label": "Scene Root - Persistent Canvas",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "use_scene_progress",
+      "label": "useSceneProgress - Scroll Hook",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "scene_content_store",
+      "label": "Scene Content Store - Data Bridge",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "springs_ts_vocabulary",
+      "label": "Springs.ts - Named Presets",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "scene_motion_ts",
+      "label": "Scene Motion - Frame Loop Vocabulary",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "scene_palette_ts",
+      "label": "Scene Palette - Color Derivation",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "device_tier_ts",
+      "label": "Device Tier - Quality Budgeting",
+      "file_type": "rationale",
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "performance_contract",
+      "label": "Performance Contract - 60fps Target",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "game_mode_toggle",
+      "label": "Game Mode Toggle",
+      "file_type": "rationale",
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "game_hud",
+      "label": "Game HUD - Level XP Bar",
+      "file_type": "rationale",
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "achievement_system",
+      "label": "Achievement System - Unlocks",
+      "file_type": "rationale",
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "explorer_level",
+      "label": "Explorer Level - Visitor Progression",
+      "file_type": "rationale",
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "career_level",
+      "label": "Career Level - Developer Real Data",
+      "file_type": "rationale",
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "game_system_architecture",
+      "label": "Game Systems Architecture",
+      "file_type": "rationale",
+      "source_file": "src/game/README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "game_rapier_physics",
+      "label": "Rapier Physics Engine",
+      "file_type": "concept",
+      "source_file": "GAME_LAYER_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "architecture_decision_d1",
+      "label": "D1 - 3D Interaction is DOM-Driven",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "architecture_decision_d2",
+      "label": "D2 - One Canvas with Game Mode Arbitration",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "architecture_decision_d3",
+      "label": "D3 - Lenis Scroll Resolution (Deleted)",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "architecture_decision_d4",
+      "label": "D4 - GSAP Resolution (No Pinning)",
+      "file_type": "rationale",
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "architecture_decision_s1",
+      "label": "S1 - Scenery Global State",
+      "file_type": "rationale",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "architecture_decision_s4",
+      "label": "S4 - Palette Composes Never Replaces",
+      "file_type": "rationale",
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "cms_admin_interface",
+      "label": "CMS Admin Interface - CRUD",
+      "file_type": "rationale",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "next_js_app_router",
+      "label": "Next.js 16 App Router",
+      "file_type": "concept",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "react_server_components",
+      "label": "React Server Components",
+      "file_type": "concept",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "tailwind_css_v4",
+      "label": "Tailwind CSS v4",
+      "file_type": "concept",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "react_hook_form",
+      "label": "React Hook Form + Zod",
+      "file_type": "concept",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "next_themes",
+      "label": "Next Themes - Light/Dark/System",
+      "file_type": "concept",
+      "source_file": "README.md",
+      "source_location": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "three_d_experience_plan_act_i",
+      "target": "immersive_3d_world_plan_act_ii",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "immersive_3d_world_plan_act_ii",
+      "target": "scenery_system_plan_act_iii",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "three_d_experience_plan_act_i",
+      "target": "game_layer_plan",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "gamification_plan",
+      "target": "game_layer_plan",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_portfolio_cms",
+      "target": "firebase_backend",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_i_phases_1_12",
+      "target": "act_ii_phases_13_20",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_ii_phases_13_20",
+      "target": "act_ii_phase_21",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_ii_phases_13_20",
+      "target": "act_iii_phases_a_l",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "r3f_three_fiber",
+      "target": "three_js",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "drei_library",
+      "target": "r3f_three_fiber",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "motion_framer",
+      "target": "readme_portfolio_cms",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "zustand_store",
+      "target": "three_d_experience_plan_act_i",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "game_rapier_physics",
+      "target": "game_layer_plan",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "GAME_LAYER_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_i_hero_sculpture",
+      "target": "act_i_about_fragments",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_i_about_fragments",
+      "target": "act_i_skill_galaxy",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_i_skill_galaxy",
+      "target": "act_i_experience_timeline",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_i_experience_timeline",
+      "target": "act_i_project_panels",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_i_project_panels",
+      "target": "act_i_contact_calm",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_ii_section_transformation",
+      "target": "act_ii_signature_moment",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_ii_scroll_physics",
+      "target": "performance_contract",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_ii_experience_architecture",
+      "target": "act_ii_section_transformation",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_ii_skill_hover_reaction",
+      "target": "architecture_decision_d1",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_ii_drifting_objects",
+      "target": "architecture_decision_d1",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "scene_motion_ts",
+      "target": "springs_ts_vocabulary",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "scene_palette_ts",
+      "target": "use_scene_progress",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "device_tier_ts",
+      "target": "performance_contract",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "game_mode_toggle",
+      "target": "game_hud",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "achievement_system",
+      "target": "game_hud",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "explorer_level",
+      "target": "achievement_system",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "career_level",
+      "target": "explorer_level",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "GAMIFICATION_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "game_system_architecture",
+      "target": "game_rapier_physics",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/game/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "architecture_decision_d1",
+      "target": "scene_content_store",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "architecture_decision_d2",
+      "target": "game_layer_plan",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "IMMERSIVE_3D_WORLD_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "architecture_decision_s1",
+      "target": "architecture_decision_s4",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_iii_scenery_atelier",
+      "target": "act_iii_scenery_observatory",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_iii_scenery_observatory",
+      "target": "act_iii_scenery_garden",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "act_iii_scenery_garden",
+      "target": "act_iii_scenery_blueprint",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "SCENERY_SYSTEM_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "scene_root_canvas",
+      "target": "r3f_three_fiber",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "use_scene_progress",
+      "target": "scene_content_store",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "THREE_D_EXPERIENCE_PLAN.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "cms_admin_interface",
+      "target": "firebase_backend",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "next_js_app_router",
+      "target": "react_server_components",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "react_server_components",
+      "target": "firebase_backend",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "act_i_scene_pipeline",
+      "nodes": [
+        "scene_root_canvas",
+        "use_scene_progress",
+        "scene_content_store",
+        "springs_ts_vocabulary"
+      ],
+      "relation": "constitutes_pipeline",
+      "description": "Act I foundation: persistent canvas, scroll tracking, data flow, and motion vocabulary",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95
+    },
+    {
+      "id": "act_ii_section_objects",
+      "nodes": [
+        "act_i_hero_sculpture",
+        "act_i_about_fragments",
+        "act_i_skill_galaxy",
+        "act_i_experience_timeline",
+        "act_i_project_panels",
+        "act_i_contact_calm"
+      ],
+      "relation": "form_section_sequence",
+      "description": "Six section-specific 3D objects across the portfolio journey",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95
+    },
+    {
+      "id": "game_progression_system",
+      "nodes": [
+        "game_mode_toggle",
+        "explorer_level",
+        "career_level",
+        "achievement_system",
+        "game_hud"
+      ],
+      "relation": "constitute_progression_system",
+      "description": "Game Mode's progression and achievement tracking system",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

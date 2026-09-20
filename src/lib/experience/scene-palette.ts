@@ -26,8 +26,15 @@ export interface ScenePalette {
   accent: string;
   /** What `--tone-soft`'s alpha actually meant: the accent as it lands over the page. */
   wash: string;
-  /** The page background — the colour distance fades toward. */
+  /** The page background — the ground the whole scene sits on. */
   atmosphere: string;
+  /**
+   * What distance actually dissolves into: `atmosphere` stepped one notch
+   * further away, so the far field reads as a recess rather than a hole cut
+   * back to the page. Derived from the background alone, never the accent —
+   * the depth of the room must not flash at every section boundary.
+   */
+  horizon: string;
   /** Key light. Never pure white: warm-neutral, faintly carrying the accent. */
   key: string;
   /** The weak fill from behind, tinted rather than grey. */
@@ -122,6 +129,26 @@ function atLightness(color: Rgb, lightness: number): Rgb {
   return fromHsl(h, s, Math.min(1, Math.max(0, lightness)));
 }
 
+/** Post-processes a derived palette — see `scenery.ts`'s `ScenerySkin`. */
+export interface ScenerySkin {
+  /** Overrides the line/accent colour outright, regardless of section `--tone`. */
+  lineColor?: string;
+  /** Rotates the accent's hue toward this target (degrees) by `hueBlend` — e.g. observatory's cold 210°. */
+  hueTowardDeg?: number;
+  /** How far toward `hueTowardDeg` to rotate, 0–1. Defaults to 1 (all the way) once `hueTowardDeg` is set. */
+  hueBlend?: number;
+  /** Multiplies the accent's saturation. */
+  chromaScale?: number;
+  /** Forces `surface`'s lightness (0–1), keeping its hue and chroma — e.g. observatory staying dark in light mode. */
+  surfaceLightness?: number;
+}
+
+/** Shortest signed distance (0–1 hue wheel) from `from` to `to`, so a hue rotation always takes the near way round. */
+function hueDelta(from: number, to: number): number {
+  const raw = to - from;
+  return raw - Math.round(raw);
+}
+
 /**
  * @param tone The section's resolved `--tone`, e.g. `"#be123c"`.
  * @param background The resolved `--bg` for the current theme.
@@ -136,10 +163,17 @@ export function buildScenePalette(tone: string, background: string): ScenePalett
   // renders it as a light colour rather than a flat overlay.
   const wash = mix(page, accent, dark ? 0.34 : 0.26);
 
+  // Aerial perspective, in the direction each theme actually has room to move:
+  // on paper distance goes down in lightness, on a near-black page it goes up,
+  // because there is nothing below #0a0a0a to recede into.
+  const pageLightness = toHsl(page).l;
+  const horizon = atLightness(page, dark ? pageLightness + 0.05 : pageLightness - 0.045);
+
   return {
     accent: toHex(accent),
     wash: toHex(wash),
     atmosphere: toHex(page),
+    horizon: toHex(horizon),
     // "No harsh white": a warm near-white carrying a trace of the section hue,
     // so the key never reads as a studio strobe against a warm neutral page.
     key: toHex(mix({ r: 255, g: 251, b: 245 }, accent, dark ? 0.14 : 0.07)),
@@ -149,5 +183,49 @@ export function buildScenePalette(tone: string, background: string): ScenePalett
     surface: toHex(atLightness(mix(page, accent, dark ? 0.22 : 0.3), dark ? 0.31 : 0.64)),
     deep: toHex(atLightness(mix(page, accent, 0.18), dark ? 0.06 : 0.17)),
     dark,
+  };
+}
+
+/**
+ * Overrides a derived palette's colour (S4) — e.g. blueprint's drafting cyan
+ * (`lineColor`, Phase G) or observatory's cold hue-shift and forced-dark
+ * surface (`hueTowardDeg`/`chromaScale`/`surfaceLightness`, Phase I).
+ * Recomputes `accent`, `wash` and `key` from whichever override applies,
+ * using the same page-mix `buildScenePalette` used, so they stay consistent
+ * with how they will actually render over the page; `deep`, `atmosphere` and
+ * `horizon` are left alone since those come from the page background, not
+ * the accent.
+ */
+export function applyScenerySkin(palette: ScenePalette, skin: ScenerySkin | undefined): ScenePalette {
+  if (!skin) return palette;
+
+  let accent = parseHex(palette.accent) ?? FALLBACK_ACCENT;
+
+  if (skin.lineColor) {
+    accent = parseHex(skin.lineColor) ?? accent;
+  } else if (skin.hueTowardDeg !== undefined || skin.chromaScale !== undefined) {
+    const hsl = toHsl(accent);
+    const targetHue = skin.hueTowardDeg !== undefined ? (((skin.hueTowardDeg % 360) + 360) % 360) / 360 : hsl.h;
+    const blend = skin.hueBlend ?? 1;
+    const h = (hsl.h + hueDelta(hsl.h, targetHue) * blend + 1) % 1;
+    const s = Math.min(1, Math.max(0, hsl.s * (skin.chromaScale ?? 1)));
+    accent = fromHsl(h, s, hsl.l);
+  } else if (skin.surfaceLightness === undefined) {
+    return palette;
+  }
+
+  const page = parseHex(palette.atmosphere) ?? FALLBACK_BG;
+  const wash = mix(page, accent, palette.dark ? 0.34 : 0.26);
+  const surface =
+    skin.surfaceLightness !== undefined
+      ? toHex(atLightness(parseHex(palette.surface) ?? FALLBACK_BG, skin.surfaceLightness))
+      : palette.surface;
+
+  return {
+    ...palette,
+    accent: toHex(accent),
+    wash: toHex(wash),
+    key: toHex(mix({ r: 255, g: 251, b: 245 }, accent, palette.dark ? 0.14 : 0.07)),
+    surface,
   };
 }

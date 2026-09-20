@@ -1,6 +1,9 @@
 "use client";
 
-import { useSceneProgress } from "@/lib/experience/use-scene-progress";
+import { useEffect, useRef } from "react";
+
+import { registerVeilTarget } from "@/lib/experience/scenery-transition";
+import { useSceneTone } from "@/lib/experience/use-scene-progress";
 
 /**
  * Animated backdrop for the public site.
@@ -18,15 +21,29 @@ import { useSceneProgress } from "@/lib/experience/use-scene-progress";
  *    `--tone` / `--tone-soft` properties cross-fade to it over ~900ms. The
  *    background is therefore tinted by wherever the reader currently is.
  *
- * The "current section" signal itself lives in `useSceneProgress` — shared
- * with the persistent 3D scene so both layers agree on where the reader is
- * rather than each running its own `IntersectionObserver`.
+ * The "current section" signal itself lives in `use-scene-progress.ts` —
+ * shared with the persistent 3D scene so both layers agree on where the reader
+ * is rather than each running its own `IntersectionObserver`.
+ *
+ * 3. **Scenery.** Registers itself with `scenery-transition.ts` (Phase K) as
+ *    one of the two things the crossfade dips — S13 called this "the visible
+ *    half", so a scenery switch that faded only the canvas would fade the
+ *    less visible one. The registration is a plain ref, not a store
+ *    subscription: this component still reads nothing but `data-tone`/
+ *    `data-scenery` and never re-renders on a switch.
  */
 export function AmbientBackground() {
-  const { tone } = useSceneProgress();
+  const tone = useSceneTone();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    return registerVeilTarget(el);
+  }, []);
 
   return (
-    <div aria-hidden="true" className="ambient" data-tone={tone}>
+    <div ref={ref} aria-hidden="true" className="ambient" data-tone={tone}>
       <div className="ambient-blob ambient-blob-a" />
       <div className="ambient-blob ambient-blob-b" />
       <div className="ambient-blob ambient-blob-c" />

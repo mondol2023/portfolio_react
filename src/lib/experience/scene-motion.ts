@@ -48,6 +48,19 @@ export function damp(current: number, target: number, smoothing: number, delta: 
   return current + (target - current) * dampFactor(smoothing, delta);
 }
 
+/**
+ * The largest `delta` an integrator may be handed, in seconds.
+ *
+ * A backgrounded tab or a slow chunk load hands `useFrame` a delta of whole
+ * seconds; integrating that teleports whatever it drives.
+ */
+export const MAX_FRAME_DELTA = 1 / 30;
+
+/** `delta` limited to `MAX_FRAME_DELTA`. Use for anything integrated over time. */
+export function clampDelta(delta: number): number {
+  return delta < MAX_FRAME_DELTA ? delta : MAX_FRAME_DELTA;
+}
+
 export interface SpringState {
   value: number;
   velocity: number;

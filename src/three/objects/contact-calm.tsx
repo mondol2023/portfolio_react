@@ -4,12 +4,17 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { sceneScroll } from "@/lib/experience/scene-scroll";
+import { sceneTime } from "@/lib/experience/scene-timer";
+
+import { sceneSectionEnvelope } from "../scene/camera-rig";
+
 interface ContactCalmProps {
   tone: string;
   toneSoft: string;
   reducedMotion: boolean;
-  /** 0 at rest in Projects, 1 once the camera has fully arrived at Contact. Contact is the path's last waypoint, so there is no exit span to fade back out toward — the object simply settles in and stays. */
-  entryProgress: number;
+  /** This section's waypoint index. It is the path's last, so the envelope's `exit` never leaves 0 — the object settles in and stays. */
+  sectionIndex: number;
 }
 
 /** Degrees/second the shell rotates at rest — Hero's sculpture turns roughly every 14s; this is nearly four times slower, the visual equivalent of the site exhaling. */
@@ -31,7 +36,7 @@ const VIGNETTE_RADIUS = 17;
  * self-contained to this section like every other phase's fade, it dims the
  * whole view perceptually without altering a single shared light's values.
  */
-export function ContactCalm({ tone, toneSoft, reducedMotion, entryProgress }: ContactCalmProps) {
+export function ContactCalm({ tone, toneSoft, reducedMotion, sectionIndex }: ContactCalmProps) {
   // Darkened rather than raw `toneSoft` — the vignette needs to read as the
   // scene actually dimming, not merely re-tinting, while still staying on
   // the section's own colour rather than jumping to a hardcoded neutral.
@@ -41,17 +46,25 @@ export function ContactCalm({ tone, toneSoft, reducedMotion, entryProgress }: Co
   const vignetteRef = useRef<THREE.Mesh>(null);
   const vignetteMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     const core = coreRef.current;
     const vignette = vignetteRef.current;
     if (!core || !vignette) return;
 
-    const settle = THREE.MathUtils.smoothstep(entryProgress, 0, 1);
+    // Read per frame, not taken as a prop: scroll moves every frame, and
+    // re-rendering the canvas at that rate is what `<ScrollPhysics>` avoids.
+    const { entry: entryProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
+
+    // Starts late in Contact's own entry span, not at its head — Experience is
+    // still flattening toward its horizon line at that point, so the core
+    // rising is timed to read as *that* motion's continuation, not a second,
+    // unrelated fade that merely overlaps it in scroll range.
+    const settle = THREE.MathUtils.smoothstep(entryProgress, 0.6, 1);
 
     if (!reducedMotion) {
       core.rotation.y += ((Math.PI * 2) / ROTATION_PERIOD_SECONDS) * delta;
       core.rotation.x += ((Math.PI * 2) / ROTATION_PERIOD_SECONDS / 3) * delta;
-      const breathe = 1 + Math.sin(state.clock.elapsedTime * 0.2) * 0.02;
+      const breathe = 1 + Math.sin(sceneTime.elapsed * 0.2) * 0.02;
       core.scale.setScalar(breathe * settle);
     } else {
       core.scale.setScalar(settle);

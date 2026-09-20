@@ -170,7 +170,15 @@ export interface SiteSettings {
  * this list in a later release must still round-trip out of an existing
  * document rather than fail to parse.
  */
-export const ANIMATION_IDS = ["three-scene", "three-particles", "three-camera-scroll"] as const;
+export const ANIMATION_IDS = [
+  "three-scene",
+  "three-particles",
+  "three-camera-scroll",
+  "three-cursor",
+  "three-signature",
+  "three-drifters",
+  "three-scenery",
+] as const;
 
 export type AnimationId = (typeof ANIMATION_IDS)[number];
 

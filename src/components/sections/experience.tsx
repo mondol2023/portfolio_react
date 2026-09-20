@@ -1,6 +1,7 @@
 import { Briefcase, Sparkle } from "lucide-react";
 
 import { Curtain } from "@/components/motion/curtain";
+import { DepthScale, DepthScaleList } from "@/components/motion/depth-scale";
 import { Reveal } from "@/components/motion/reveal";
 import { ScrollProgressLine } from "@/components/motion/scroll-progress-line";
 import { Badge } from "@/components/ui/badge";
@@ -69,142 +70,152 @@ export function Experience({ experiences, techIcons }: ExperienceProps) {
         </Reveal>
       ) : (
         <ScrollProgressLine className="mt-16">
-          <ol className="space-y-12 pl-6 sm:pl-10">
-            {experiences.map((entry) => {
-              const hasDetail =
-                Boolean(entry.description) ||
-                entry.responsibilities.length > 0 ||
-                entry.technologies.length > 0;
+          <DepthScaleList>
+            <ol className="space-y-12 pl-6 sm:pl-10">
+              {experiences.map((entry, index) => {
+                const hasDetail =
+                  Boolean(entry.description) ||
+                  entry.responsibilities.length > 0 ||
+                  entry.technologies.length > 0;
 
-              return (
-                <li key={entry.id} className="relative">
-                  {/*
-                   * Node on the rail, centred on the 1px line to either side. The
-                   * current role gets the same "you are here" ping the Hero's
-                   * availability dot uses — one motif for "this is live right
-                   * now," not a second one invented for the timeline.
-                   */}
-                  <span
-                    aria-hidden="true"
-                    className="absolute top-2 -left-6 flex size-2.5 -translate-x-1/2 sm:-left-10"
-                  >
-                    {entry.isCurrent ? (
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-tone opacity-60" />
-                    ) : null}
+                return (
+                  <li key={entry.id} className="relative">
+                    {/*
+                     * Node on the rail, centred on the 1px line to either side. The
+                     * current role gets the same "you are here" ping the Hero's
+                     * availability dot uses — one motif for "this is live right
+                     * now," not a second one invented for the timeline.
+                     */}
                     <span
-                      className={`relative inline-flex size-2.5 rounded-full ring-4 ring-bg-subtle ${
-                        entry.isCurrent ? "bg-tone" : "bg-border-strong"
-                      }`}
-                    />
-                  </span>
+                      aria-hidden="true"
+                      className="absolute top-2 -left-6 flex size-2.5 -translate-x-1/2 sm:-left-10"
+                    >
+                      {entry.isCurrent ? (
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-tone opacity-60" />
+                      ) : null}
+                      <span
+                        className={`relative inline-flex size-2.5 rounded-full ring-4 ring-bg-subtle ${
+                          entry.isCurrent ? "bg-tone" : "bg-border-strong"
+                        }`}
+                      />
+                    </span>
 
-                  <div className="lg:grid lg:grid-cols-[14rem_1fr] lg:gap-12">
-                    <Reveal className="lg:pt-1">
-                      <p className="label-mono">
-                        <time dateTime={toDateTimeAttribute(entry.startDate)}>
-                          {formatDateRange(entry.startDate, entry.endDate)}
-                        </time>
-                      </p>
-                      <p className="mt-2 text-xs text-fg-subtle">
-                        {formatDuration(entry.startDate, entry.endDate)}
-                      </p>
-                    </Reveal>
-
-                    <div className="mt-4 lg:mt-0">
-                      <Reveal delay={0.05}>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="text-xl font-semibold tracking-tight text-fg">
-                            {entry.position}
-                          </h3>
-                          {entry.isCurrent ? <Badge variant="success">Current</Badge> : null}
-                        </div>
-
-                        <p className="mt-1.5 text-sm text-fg-muted">
-                          {entry.companyUrl ? (
-                            <a
-                              href={entry.companyUrl}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="font-medium text-fg underline-offset-4 hover:underline"
-                            >
-                              {entry.company}
-                            </a>
-                          ) : (
-                            <span className="font-medium text-fg">{entry.company}</span>
-                          )}
-                          <span aria-hidden="true"> · </span>
-                          {EMPLOYMENT_TYPE_LABELS[entry.employmentType]}
-                          {entry.location ? (
-                            <>
-                              <span aria-hidden="true"> · </span>
-                              {entry.location}
-                            </>
-                          ) : null}
+                    {/* The row rides the same depth rake as the stations behind
+                        it — full size while it is at the eyeline, receding as it
+                        leaves. The rail marker above stays outside it, so the
+                        node never drifts off the rail. */}
+                    <DepthScale
+                      index={index}
+                      count={experiences.length}
+                      className="lg:grid lg:grid-cols-[14rem_1fr] lg:gap-12"
+                    >
+                      <Reveal className="lg:pt-1">
+                        <p className="label-mono">
+                          <time dateTime={toDateTimeAttribute(entry.startDate)}>
+                            {formatDateRange(entry.startDate, entry.endDate)}
+                          </time>
+                        </p>
+                        <p className="mt-2 text-xs text-fg-subtle">
+                          {formatDuration(entry.startDate, entry.endDate)}
                         </p>
                       </Reveal>
 
-                      {hasDetail ? (
-                        <Curtain delay={0.12} className="mt-4">
-                          {/* Hairline in the section tone, so the detail reads as
-                              having emerged from under the header rather than
-                              simply being the next paragraph. */}
-                          <span
-                            aria-hidden="true"
-                            className="block h-px w-10 bg-tone/50"
-                          />
+                      <div className="mt-4 lg:mt-0">
+                        <Reveal delay={0.05}>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h3 className="text-xl font-semibold tracking-tight text-fg">
+                              {entry.position}
+                            </h3>
+                            {entry.isCurrent ? <Badge variant="success">Current</Badge> : null}
+                          </div>
 
-                          {entry.description ? (
-                            <p className="mt-4 text-sm leading-relaxed text-fg-muted">
-                              {entry.description}
-                            </p>
-                          ) : null}
+                          <p className="mt-1.5 text-sm text-fg-muted">
+                            {entry.companyUrl ? (
+                              <a
+                                href={entry.companyUrl}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="font-medium text-fg underline-offset-4 hover:underline"
+                              >
+                                {entry.company}
+                              </a>
+                            ) : (
+                              <span className="font-medium text-fg">{entry.company}</span>
+                            )}
+                            <span aria-hidden="true"> · </span>
+                            {EMPLOYMENT_TYPE_LABELS[entry.employmentType]}
+                            {entry.location ? (
+                              <>
+                                <span aria-hidden="true"> · </span>
+                                {entry.location}
+                              </>
+                            ) : null}
+                          </p>
+                        </Reveal>
 
-                          {entry.responsibilities.length > 0 ? (
-                            /*
-                             * What the role actually was, one point per line. The
-                             * marker is an icon in the section tone rather than a
-                             * disc, and it sits in its own column so a point that
-                             * wraps stays aligned under its own first word.
-                             */
-                            <ul className="mt-4 space-y-2.5">
-                              {entry.responsibilities.map((item) => (
-                                <li
-                                  key={item}
-                                  className="grid grid-cols-[auto_1fr] gap-x-2.5 text-sm leading-relaxed text-fg-muted"
-                                >
-                                  <Sparkle
-                                    aria-hidden="true"
-                                    className="mt-1 size-3.5 shrink-0 fill-tone/20 text-tone"
-                                  />
-                                  <span>{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : null}
+                        {hasDetail ? (
+                          <Curtain delay={0.12} className="mt-4">
+                            {/* Hairline in the section tone, so the detail reads as
+                                having emerged from under the header rather than
+                                simply being the next paragraph. */}
+                            <span
+                              aria-hidden="true"
+                              className="block h-px w-10 bg-tone/50"
+                            />
 
-                          {entry.technologies.length > 0 ? (
-                            <ul
-                              aria-label={`Technologies used at ${entry.company}`}
-                              className="mt-6 flex flex-wrap gap-2"
-                            >
-                              {entry.technologies.map((tech) => (
-                                <li key={tech}>
-                                  <TechChip
-                                    name={tech}
-                                    iconUrl={lookupTechIcon(techIcons, tech)}
-                                  />
-                                </li>
-                              ))}
-                            </ul>
-                          ) : null}
-                        </Curtain>
-                      ) : null}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+                            {entry.description ? (
+                              <p className="mt-4 text-sm leading-relaxed text-fg-muted">
+                                {entry.description}
+                              </p>
+                            ) : null}
+
+                            {entry.responsibilities.length > 0 ? (
+                              /*
+                               * What the role actually was, one point per line. The
+                               * marker is an icon in the section tone rather than a
+                               * disc, and it sits in its own column so a point that
+                               * wraps stays aligned under its own first word.
+                               */
+                              <ul className="mt-4 space-y-2.5">
+                                {entry.responsibilities.map((item) => (
+                                  <li
+                                    key={item}
+                                    className="grid grid-cols-[auto_1fr] gap-x-2.5 text-sm leading-relaxed text-fg-muted"
+                                  >
+                                    <Sparkle
+                                      aria-hidden="true"
+                                      className="mt-1 size-3.5 shrink-0 fill-tone/20 text-tone"
+                                    />
+                                    <span>{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+
+                            {entry.technologies.length > 0 ? (
+                              <ul
+                                aria-label={`Technologies used at ${entry.company}`}
+                                className="mt-6 flex flex-wrap gap-2"
+                              >
+                                {entry.technologies.map((tech) => (
+                                  <li key={tech}>
+                                    <TechChip
+                                      name={tech}
+                                      iconUrl={lookupTechIcon(techIcons, tech)}
+                                    />
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </Curtain>
+                        ) : null}
+                      </div>
+                    </DepthScale>
+                  </li>
+                );
+              })}
+            </ol>
+          </DepthScaleList>
         </ScrollProgressLine>
       )}
 
