@@ -7,10 +7,18 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
-import { clampDelta, easeOutCubic, springStep, stagger, type SpringState } from "@/lib/experience/scene-motion";
+import {
+  clampDelta,
+  damp,
+  entranceEase,
+  type EntranceId,
+  entranceStagger,
+  SCENE_SMOOTHING,
+  springStep,
+  type SpringState,
+} from "@/lib/experience/scene-motion";
 import { seededRandom } from "@/lib/experience/random";
 import { sceneScroll } from "@/lib/experience/scene-scroll";
-import { sceneTime } from "@/lib/experience/scene-timer";
 import { useSceneInteractionStore } from "@/lib/store/scene-interaction-store";
 import { SKILL_CATEGORIES, type Skill } from "@/lib/types/content";
 
@@ -25,6 +33,10 @@ export interface GrowthProps {
   budget: SceneBudget;
   /** This section's waypoint index: `entry` scrubs the vine's `grow` clip and blooms it, `exit` fades the field out. */
   sectionIndex: number;
+  /** `scenery.hueSpread` — how far category coding may tint a node off the scenery accent. */
+  hueSpread: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 /** Matches `scripts/generate-garden-vine.mjs`'s `HEIGHT` — the trunk runs 0..2.6 in its own local space. */
@@ -140,8 +152,17 @@ const EMPTY_CLIPS: THREE.AnimationClip[] = [];
  * below (not a sibling `useAnimations` never sees), which means the same
  * `rootRef` has to be both the animation root and the transform target.
  */
-export function Growth({ skills, tone, toneSoft, reducedMotion, budget, sectionIndex }: GrowthProps) {
-  const shared = { skills, tone, toneSoft, reducedMotion, budget, sectionIndex } as const;
+export function Growth({
+  skills,
+  tone,
+  toneSoft,
+  reducedMotion,
+  budget,
+  sectionIndex,
+  hueSpread,
+  entrance,
+}: GrowthProps) {
+  const shared = { skills, tone, toneSoft, reducedMotion, budget, sectionIndex, hueSpread, entrance } as const;
 
   if (budget.tier === "low") {
     // §11/Phase J: no skinned mesh at `low` — the static trunk below carries
@@ -166,6 +187,11 @@ function VineLoaded(props: GrowthProps) {
 
 useGLTF.preload("/models/vine.glb");
 
+/** How much sway energy a full page of scrolling is worth. */
+const SWAY_GAIN = 26;
+/** Peak lean, radians — small enough to read as ambient, zero at rest. */
+const SWAY_AMPLITUDE = 0.015;
+
 function VineField({
   skills,
   tone,
@@ -173,13 +199,17 @@ function VineField({
   reducedMotion,
   budget,
   sectionIndex,
+  hueSpread,
+  entrance,
   gltf,
 }: GrowthProps & { gltf: LoadedGltf | null }) {
-  const nodes = useMemo(() => buildNodes(skills, budget.galaxyNodes, tone), [skills, budget.galaxyNodes, tone]);
+  const nodes = useMemo(() => buildNodes(skills, budget.galaxyNodes, tone, hueSpread), [skills, budget.galaxyNodes, tone, hueSpread]);
   const branches = useMemo(() => buildBranches(), []);
   const stemGeometry = useMemo(() => buildStemGeometry(branches), [branches]);
   const buds = useMemo(() => layoutBuds(nodes, branches), [nodes, branches]);
   const indexById = useMemo(() => new Map(buds.map((bud, index) => [bud.node.skill.id, index])), [buds]);
+  /** Scroll-driven sway: energy in from movement, damped out to rest. */
+  const swayState = useRef({ energy: 0, last: 0 });
 
   useEffect(() => () => stemGeometry.dispose(), [stemGeometry]);
 
@@ -238,16 +268,37 @@ function VineField({
     const delta = clampDelta(rawDelta);
 
     const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
-    const formAmount = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1);
-    const presence = 1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1);
+    const formAmount = reducedMotion ? 1 : entranceEase(entrance, entryProgress);
+    // Scroll-gated on the section's *entrance* as well as its exit. Read off
+    // `exit` alone, the whole graph sat at full scale from the first frame of
+    // the page — Skills' nodes crossed Hero's tagline and About's copy two
+    // sections before their own, which is the one thing the scene must never
+    // do. The ramp is deliberately short (the same 0.12 About's fragments
+    // use): the scattered pose is still on screen for the great majority of
+    // the entrance, so `formAmount`'s scatter-to-cluster choreography below is
+    // unchanged — this only stops it happening over somebody else's type.
+    // Not gated on `reducedMotion`, for the same reason `exit` is not: scroll
+    // is the story parameter, not an animation to switch off.
+    const appear = THREE.MathUtils.smoothstep(entryProgress, 0, 0.12);
+    const presence = appear * (1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1));
     root.visible = presence > 0.01;
     if (!root.visible) return;
 
     root.scale.setScalar(presence);
-    // Secondary motion (§ "breathing"), driven by the shared scene clock —
-    // never React state — and small enough to read as ambient rather than as
-    // its own animation.
-    root.rotation.z = reducedMotion ? 0 : Math.sin(sceneTime.elapsed * 0.35) * 0.015 * formAmount;
+    // Secondary motion: the vine leans as the reader scrolls and settles back
+    // to upright when they stop, rather than swinging on a clock of its own.
+    // `scenery.ts` states that nothing in garden moves on its own clock, only
+    // in response to scroll; before Phase L this line was the counter-example,
+    // a `sin(sceneTime.elapsed)` that never came to rest.
+    const scrolled = sceneScroll.progress - swayState.current.last;
+    swayState.current.last = sceneScroll.progress;
+    swayState.current.energy = damp(
+      THREE.MathUtils.clamp(swayState.current.energy + scrolled * SWAY_GAIN, -1, 1),
+      0,
+      SCENE_SMOOTHING.glide,
+      delta,
+    );
+    root.rotation.z = reducedMotion ? 0 : swayState.current.energy * SWAY_AMPLITUDE * formAmount;
 
     // Grow clip: scrubbed straight from entry progress, never played —
     // §1's "scroll is the only story parameter."
@@ -274,7 +325,7 @@ function VineField({
       // Sprouts in along the branch as the section forms — near-the-trunk
       // buds first, same `stagger` idiom `monoliths.tsx` uses for its
       // near-to-far wave.
-      const grow = reducedMotion ? 1 : easeOutCubic(stagger(formAmount, index, buds.length, 0.6));
+      const grow = reducedMotion ? 1 : entranceStagger(entrance, entryProgress, index, buds.length);
       const focusTarget = index === hoveredIndex ? 1 : 0;
       const focus = clamp01(springStep(bud.focus, focusTarget, "settle", delta));
 

@@ -13,6 +13,8 @@ import {
   clampDelta,
   damp,
   easeOutCubic,
+  type EntranceId,
+  entranceStagger,
   springStep,
   stagger,
   type SpringState,
@@ -24,6 +26,7 @@ import type { Project } from "@/lib/types/content";
 
 import { sceneSectionEnvelope } from "../../scene/camera-rig";
 import { glowTexture, roundedSlabGeometry } from "../../scene/geometry";
+import { hoveredSlabIndex } from "./hovered";
 import { buildSlabs, CLOSED_STEP, FAR_DIM, SLAB_DEPTH, SLAB_HEIGHT, SLAB_WIDTH, WALL_LIMIT } from "./layout";
 
 export interface CorridorProps {
@@ -34,6 +37,8 @@ export interface CorridorProps {
   pointer: { current: { x: number; y: number } };
   /** This section's waypoint index: `entry` opens the corridor, `exit` closes it again. */
   sectionIndex: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 /** How far outboard of the content edge a panel's centre is pinned. */
@@ -230,6 +235,7 @@ export function Corridor({
   reducedMotion,
   pointer,
   sectionIndex,
+  entrance,
 }: CorridorProps) {
   const ranked = useMemo(() => [...projects].sort((a, b) => a.order - b.order), [projects]);
   const lead = ranked[0];
@@ -398,23 +404,29 @@ export function Corridor({
     // so they never have to cross the camera plane to get there.
     const converge = THREE.MathUtils.smoothstep(commit, 0, 0.9) * takeover;
 
-    // Whichever slab the cursor is nearest, resolved in screen space once per
-    // frame — a canvas behind `pointer-events-none` content can never raycast.
+    // Which slab is attended to. The hovered DOM card wins outright; only
+    // with no card under the cursor does this fall back to whichever slab the
+    // cursor is nearest in screen space — see `hovered.ts` for why that order
+    // and not the other one.
     let nearest = -1;
     if (!reducedMotion && wallsOn) {
-      let nearestDistance = HOVER_RADIUS;
-      slabs.forEach((_slab, index) => {
-        const group = slabRefs.current[index];
-        if (!group) return;
-        group.getWorldPosition(scratchProjected).project(camera);
-        if (scratchProjected.z > 1) return;
-        const dx = scratchProjected.x - pointer.current.x;
-        const dy = scratchProjected.y - pointer.current.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearest = index;
-        }
+      nearest = hoveredSlabIndex(slabs, () => {
+        let nearestDistance = HOVER_RADIUS;
+        let found = -1;
+        slabs.forEach((_slab, index) => {
+          const group = slabRefs.current[index];
+          if (!group) return;
+          group.getWorldPosition(scratchProjected).project(camera);
+          if (scratchProjected.z > 1) return;
+          const dx = scratchProjected.x - pointer.current.x;
+          const dy = scratchProjected.y - pointer.current.y;
+          const distance = Math.hypot(dx, dy);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            found = index;
+          }
+        });
+        return found;
       });
     }
 
@@ -429,7 +441,7 @@ export function Corridor({
       // Near panels open first and the wave runs away down the corridor; the
       // exit runs the same order, so the panel you have just passed is the
       // first to close behind you.
-      const wave = reducedMotion ? 1 : easeOutCubic(stagger(panelsIn, index, slabs.length, 0.5));
+      const wave = reducedMotion ? 1 : entranceStagger(entrance, panelsIn, index, slabs.length);
       const shut = reducedMotion ? closing : easeOutCubic(stagger(closing, index, slabs.length, 0.5));
       const openness = THREE.MathUtils.clamp(wave * (1 - shut), 0, 1) * allowance;
 

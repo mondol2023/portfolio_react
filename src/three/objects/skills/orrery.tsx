@@ -5,7 +5,15 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
-import { clampDelta, damp, SCENE_SMOOTHING, springStep, type SpringState } from "@/lib/experience/scene-motion";
+import {
+  clampDelta,
+  damp,
+  entranceEase,
+  type EntranceId,
+  SCENE_SMOOTHING,
+  springStep,
+  type SpringState,
+} from "@/lib/experience/scene-motion";
 import { sceneScroll } from "@/lib/experience/scene-scroll";
 import { useSceneInteractionStore } from "@/lib/store/scene-interaction-store";
 import { SKILL_CATEGORIES, type Skill, type SkillCategory } from "@/lib/types/content";
@@ -21,6 +29,10 @@ export interface OrreryProps {
   budget: SceneBudget;
   /** This section's waypoint index: `entry` drives the scatter-to-orbit, `exit` fades the field out. */
   sectionIndex: number;
+  /** `scenery.hueSpread` — how far category coding may tint a node off the scenery accent. */
+  hueSpread: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 /** Innermost ring radius, and how much each successive category ring grows — concentric, not clustered (§4.2). */
@@ -129,8 +141,17 @@ const scratchDesired = new THREE.Vector3();
  * position lerp. Hovering is still DOM-driven (`scene-interaction-store`) —
  * the canvas itself never raycasts.
  */
-export function Orrery({ skills, tone, toneSoft, reducedMotion, budget, sectionIndex }: OrreryProps) {
-  const nodes = useMemo(() => buildNodes(skills, budget.galaxyNodes, tone), [skills, budget.galaxyNodes, tone]);
+export function Orrery({
+  skills,
+  tone,
+  toneSoft,
+  reducedMotion,
+  budget,
+  sectionIndex,
+  hueSpread,
+  entrance,
+}: OrreryProps) {
+  const nodes = useMemo(() => buildNodes(skills, budget.galaxyNodes, tone, hueSpread), [skills, budget.galaxyNodes, tone, hueSpread]);
   const rings = useMemo(() => buildRings(), []);
   const ringByCategory = useMemo(() => new Map(rings.map((ring) => [ring.category, ring])), [rings]);
   const indexById = useMemo(() => new Map(nodes.map((node, index) => [node.skill.id, index])), [nodes]);
@@ -183,8 +204,19 @@ export function Orrery({ skills, tone, toneSoft, reducedMotion, budget, sectionI
     }
 
     const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
-    const formAmount = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1);
-    const presence = 1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1);
+    const formAmount = reducedMotion ? 1 : entranceEase(entrance, entryProgress);
+    // Scroll-gated on the section's *entrance* as well as its exit. Read off
+    // `exit` alone, the whole graph sat at full scale from the first frame of
+    // the page — Skills' nodes crossed Hero's tagline and About's copy two
+    // sections before their own, which is the one thing the scene must never
+    // do. The ramp is deliberately short (the same 0.12 About's fragments
+    // use): the scattered pose is still on screen for the great majority of
+    // the entrance, so `formAmount`'s scatter-to-cluster choreography below is
+    // unchanged — this only stops it happening over somebody else's type.
+    // Not gated on `reducedMotion`, for the same reason `exit` is not: scroll
+    // is the story parameter, not an animation to switch off.
+    const appear = THREE.MathUtils.smoothstep(entryProgress, 0, 0.12);
+    const presence = appear * (1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1));
     group.scale.setScalar(presence);
 
     const interactive = !reducedMotion && presence > MIN_INTERACTIVE_PRESENCE;

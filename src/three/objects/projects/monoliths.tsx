@@ -6,7 +6,17 @@ import * as THREE from "three";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import { contentSafeFraction, gutterPixels } from "@/lib/experience/scene-layout";
-import { clampDelta, damp, easeOutCubic, SCENE_SMOOTHING, springStep, stagger, type SpringState } from "@/lib/experience/scene-motion";
+import {
+  clampDelta,
+  damp,
+  easeOutCubic,
+  type EntranceId,
+  entranceStagger,
+  SCENE_SMOOTHING,
+  springStep,
+  stagger,
+  type SpringState,
+} from "@/lib/experience/scene-motion";
 import type { ScenePalette } from "@/lib/experience/scene-palette";
 import { scenePointer, setSceneDragging } from "@/lib/experience/scene-pointer";
 import { pickNearest, registerInteractive } from "@/lib/experience/scene-raycaster";
@@ -16,6 +26,7 @@ import type { Project } from "@/lib/types/content";
 import { sceneSectionEnvelope } from "../../scene/camera-rig";
 import { roundedSlabGeometry } from "../../scene/geometry";
 import { useSceneKTX2 } from "../../scene/loaders";
+import { hoveredSlabIndex } from "./hovered";
 import { buildSlabs, SLAB_DEPTH, SLAB_HEIGHT, SLAB_WIDTH, WALL_LIMIT } from "./layout";
 
 export interface MonolithsProps {
@@ -26,6 +37,8 @@ export interface MonolithsProps {
   pointer: { current: { x: number; y: number } };
   /** This section's waypoint index: `entry` raises the monoliths, `exit` lowers them again. */
   sectionIndex: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 /** Gutter thresholds a monolith needs to stand in — the same screen real estate `corridor.tsx`'s walls use. */
@@ -51,11 +64,20 @@ interface MonolithRuntime {
   angle: SpringState;
   /** 0–1 grab reaction, eases the held glow. */
   hold: number;
+  /** 0–1 card-hover reaction. Separate from `hold` — see the frame loop. */
+  hover: number;
 }
 
 function newRuntime(): MonolithRuntime {
-  return { angle: { value: 0, velocity: 0 }, hold: 0 };
+  return { angle: { value: 0, velocity: 0 }, hold: 0, hover: 0 };
 }
+
+/** Held: the face lights and the monolith reads as picked up. */
+const HOLD_FACE_GLOW = 0.4;
+const HOLD_EDGE_GLOW = 1.2;
+const HOLD_SCALE = 0.03;
+/** Hovered: the accent edge alone firms. No face change, no move. */
+const HOVER_EDGE_GLOW = 0.5;
 
 /**
  * Observatory's Projects identity (§4.2): the corridor's wall-mounted slabs
@@ -71,7 +93,15 @@ function newRuntime(): MonolithRuntime {
  * but positions each slab statically in the gutter rather than opening a wall,
  * since a monolith does not hinge.
  */
-export function Monoliths({ projects, palette, budget, reducedMotion, pointer, sectionIndex }: MonolithsProps) {
+export function Monoliths({
+  projects,
+  palette,
+  budget,
+  reducedMotion,
+  pointer,
+  sectionIndex,
+  entrance,
+}: MonolithsProps) {
   const ranked = useMemo(() => [...projects].sort((a, b) => a.order - b.order), [projects]);
   const slabs = useMemo(() => buildSlabs(ranked, palette, WALL_LIMIT[budget.tier]), [ranked, palette, budget.tier]);
 
@@ -131,7 +161,9 @@ export function Monoliths({ projects, palette, budget, reducedMotion, pointer, s
     const delta = clampDelta(rawDelta);
 
     const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
-    const opening = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1);
+    // Raw, not smoothstepped: the world's own entrance curve is the only
+    // shaping applied to it now (Part 4).
+    const opening = reducedMotion ? 1 : entryProgress;
     const presence = 1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1);
 
     root.visible = presence > 0.01;
@@ -172,6 +204,13 @@ export function Monoliths({ projects, palette, budget, reducedMotion, pointer, s
       setSceneDragging(false);
     }
 
+    // Observatory's monoliths answer a press, never a pass of the cursor —
+    // the raycast here is deliberately not continuous. So the resting-state
+    // acknowledgement comes from the card instead: hovering one brightens its
+    // monolith without moving it, which is a quieter signal than a grab and
+    // stays distinct from one (§8). No `pick` fallback, hence `() => -1`.
+    const attended = dragging ? hoveredSlabIndex(slabs, () => -1) : -1;
+
     slabs.forEach((slab, index) => {
       const group = groupRefs.current[index];
       const item = runtime[index];
@@ -183,7 +222,7 @@ export function Monoliths({ projects, palette, budget, reducedMotion, pointer, s
       // Near-to-far reveal on the way in, same order on the way out — the
       // wave `corridor.tsx` uses for its wall-open, repurposed here as a
       // scale-in since a monolith doesn't hinge.
-      const wave = reducedMotion ? 1 : easeOutCubic(stagger(opening, index, slabs.length, 0.5));
+      const wave = reducedMotion ? 1 : entranceStagger(entrance, opening, index, slabs.length);
       const shut = reducedMotion ? 0 : easeOutCubic(stagger(1 - presence, index, slabs.length, 0.5));
       const emergence = THREE.MathUtils.clamp(wave * (1 - shut), 0, 1) * allowance;
 
@@ -212,7 +251,12 @@ export function Monoliths({ projects, palette, budget, reducedMotion, pointer, s
         springStep(item.angle, target, "settle", delta);
       }
 
+      // Two channels: Part 6 routed the card hover into `hold`, so "reading it"
+      // and "holding it" glowed alike. Hover firms the edge; only a grab lights
+      // the face or moves it.
       item.hold = damp(item.hold, held ? 1 : 0, SCENE_SMOOTHING.tight, delta);
+      item.hover = damp(item.hover, attended === index ? 1 : 0, SCENE_SMOOTHING.tight, delta);
+      const notice = item.hover * (1 - item.hold);
 
       const baseYaw = -slab.side * BASE_TOE_IN;
       group.rotation.y = baseYaw + item.angle.value;
@@ -222,15 +266,19 @@ export function Monoliths({ projects, palette, budget, reducedMotion, pointer, s
       // swap, so it stays legible at every intermediate angle of the turn.
       const flipAmount = THREE.MathUtils.clamp(Math.abs(item.angle.value) / FLIP_THRESHOLD, 0, 1);
 
+      // Multiplied onto the entrance scale: one grabbed mid-arrival stays on its wave.
+      group.scale.multiplyScalar(1 + item.hold * HOLD_SCALE);
+
       const face = faceMaterials.current[index];
       if (face) {
         face.opacity = emergence;
-        face.emissiveIntensity = 0.05 + item.hold * 0.4 + flipAmount * 0.6;
+        face.emissiveIntensity = 0.05 + item.hold * HOLD_FACE_GLOW + flipAmount * 0.6;
       }
       const edge = edgeMaterials.current[index];
       if (edge) {
         edge.opacity = emergence;
-        edge.emissiveIntensity = 0.5 + item.hold * 1.2 + flipAmount * 0.8;
+        edge.emissiveIntensity =
+          0.5 + item.hold * HOLD_EDGE_GLOW + notice * HOVER_EDGE_GLOW + flipAmount * 0.8;
       }
     });
   });

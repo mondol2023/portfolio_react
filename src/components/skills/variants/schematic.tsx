@@ -39,6 +39,10 @@ export function SchematicList({ skills }: { skills: Skill[] }) {
                   type="button"
                   onPointerEnter={() => publishHoveredSkill(skill.id)}
                   onPointerLeave={() => clearHoveredSkill(skill.id)}
+                  // Keyboard reaches the same reaction, as it does from the
+                  // marquee in every other scenery (Phase L Part 6).
+                  onFocus={() => publishHoveredSkill(skill.id)}
+                  onBlur={() => clearHoveredSkill(skill.id)}
                   onClick={() => setActiveId((id) => (id === skill.id ? null : skill.id))}
                   className={cn(
                     "border-b border-dashed border-border-strong text-sm text-fg-muted transition-colors duration-150",

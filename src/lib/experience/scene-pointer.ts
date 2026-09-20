@@ -47,11 +47,21 @@ export function wasClick(upX: number, upY: number, upTime: number): boolean {
   return Math.hypot(dx, dy) <= CLICK_MAX_DISTANCE && upTime - scenePointer.pressStartTime <= CLICK_MAX_DURATION;
 }
 
-/** Body class carrying the grab cursor and selection lock; see `globals.css`. */
+/** Body classes carrying the grab cursors; see `globals.css`. */
 const DRAGGING_CLASS = "scene-dragging";
+const GRABBABLE_CLASS = "scene-grabbable";
 
 /** Called twice per drag, not per frame — a DOM write from `useFrame` only affords that. */
 export function setSceneDragging(active: boolean): void {
   if (typeof document === "undefined") return;
   document.body.classList.toggle(DRAGGING_CLASS, active);
+}
+
+/** `cursor: grab` before the press (§6.2). Guarded, so `useFrame` may call it every frame. */
+let grabbable = false;
+
+export function setSceneGrabbable(active: boolean): void {
+  if (typeof document === "undefined" || active === grabbable) return;
+  grabbable = active;
+  document.body.classList.toggle(GRABBABLE_CLASS, active);
 }

@@ -4,6 +4,7 @@ import type { HTMLMotionProps } from "motion/react";
 import { createElement, type ElementType, type ReactNode } from "react";
 
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
+import { useSceneSceneryStore } from "@/lib/store/scene-scenery-store";
 
 import { motionElement } from "./motion-element";
 import {
@@ -70,7 +71,10 @@ export function StaggerItem({
   ...props
 }: StaggerItemProps) {
   const reducedMotion = useMotionPreference();
-  const variants = createFadeVariants(direction, reducedMotion, distance);
+  // Same per-world pace as `Reveal` — a list item and a block that enter side
+  // by side must not disagree about how fast this world moves.
+  const entrance = useSceneSceneryStore((state) => state.renderScenery.entrance);
+  const variants = createFadeVariants(direction, reducedMotion, distance, entrance);
 
   return createElement(motionElement(as), { variants, ...props }, children);
 }

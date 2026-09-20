@@ -9,6 +9,8 @@ import {
   clampDelta,
   damp,
   dampFactor,
+  entranceEase,
+  type EntranceId,
   SCENE_SMOOTHING,
   springStep,
   type SpringState,
@@ -28,6 +30,10 @@ export interface SchematicProps {
   budget: SceneBudget;
   /** This section's waypoint index: `entry` drives the scatter-to-cluster, `exit` fades the graph out. */
   sectionIndex: number;
+  /** `scenery.hueSpread` — how far category coding may tint a node off the scenery accent. */
+  hueSpread: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 /** Same reaction shape as `constellation.tsx` — the layout and the physics are shared, only the paint differs. */
@@ -95,9 +101,18 @@ const scratchEdgeColor = new THREE.Color();
  * glow. Reusing the layout is the point (§5): a variant that re-derived the
  * clustering would drift from the constellation the moment either changed.
  */
-export function Schematic({ skills, tone, toneSoft, reducedMotion, budget, sectionIndex }: SchematicProps) {
+export function Schematic({
+  skills,
+  tone,
+  toneSoft,
+  reducedMotion,
+  budget,
+  sectionIndex,
+  hueSpread,
+  entrance,
+}: SchematicProps) {
   const { camera } = useThree();
-  const nodes = useMemo(() => buildNodes(skills, budget.galaxyNodes, tone), [skills, budget.galaxyNodes, tone]);
+  const nodes = useMemo(() => buildNodes(skills, budget.galaxyNodes, tone, hueSpread), [skills, budget.galaxyNodes, tone, hueSpread]);
   const edges = useMemo(() => buildEdges(nodes), [nodes]);
   const indexById = useMemo(() => new Map(nodes.map((node, index) => [node.skill.id, index])), [nodes]);
   const linePositions = useMemo(() => new Float32Array(Math.max(edges.length, 1) * 2 * 3), [edges.length]);
@@ -135,8 +150,19 @@ export function Schematic({ skills, tone, toneSoft, reducedMotion, budget, secti
     const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
 
     const followAmount = reducedMotion ? 1 : dampFactor(SCENE_SMOOTHING.glide, delta);
-    const formAmount = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1);
-    const presence = 1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1);
+    const formAmount = reducedMotion ? 1 : entranceEase(entrance, entryProgress);
+    // Scroll-gated on the section's *entrance* as well as its exit. Read off
+    // `exit` alone, the whole graph sat at full scale from the first frame of
+    // the page — Skills' nodes crossed Hero's tagline and About's copy two
+    // sections before their own, which is the one thing the scene must never
+    // do. The ramp is deliberately short (the same 0.12 About's fragments
+    // use): the scattered pose is still on screen for the great majority of
+    // the entrance, so `formAmount`'s scatter-to-cluster choreography below is
+    // unchanged — this only stops it happening over somebody else's type.
+    // Not gated on `reducedMotion`, for the same reason `exit` is not: scroll
+    // is the story parameter, not an animation to switch off.
+    const appear = THREE.MathUtils.smoothstep(entryProgress, 0, 0.12);
+    const presence = appear * (1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1));
     group.scale.setScalar(presence);
 
     const interactive = !reducedMotion && presence > MIN_INTERACTIVE_PRESENCE;

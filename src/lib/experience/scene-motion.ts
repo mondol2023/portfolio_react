@@ -117,3 +117,63 @@ export function stagger(progress: number, index: number, count: number, overlap 
   const start = index * span * spread;
   return clamp01((progress - start) / span);
 }
+
+/**
+ * How a world's objects arrive.
+ *
+ * Declared here and *used* from `scenery.ts` — the same relationship
+ * `ScenerySkin` already has with `scene-palette.ts` — so a scenery stays data
+ * and the motion vocabulary stays in one file.
+ *
+ * Phase L Part 4: the four worlds were entering identically. Every Skills
+ * variant computed `smoothstep(entry, 0, 1)` from the same line, and three of
+ * the four Projects variants ran it through the same
+ * `easeOutCubic(stagger(…, 0.5))` — one entrance language wearing four hues,
+ * which is the generic "everything fades and moves up" Part 4 rejects by name.
+ *
+ * Nothing new is integrated here: this only *selects* among the easings above
+ * and hands `stagger` its own `overlap` parameter. The four differ along two
+ * axes a reader can actually see — whether things arrive together or one after
+ * another, and whether that happens early in the approach or across all of it.
+ */
+export type EntranceId = "settle" | "reveal" | "emerge" | "construct";
+
+interface EntranceLanguage {
+  /** Where in the section's `entry` ramp the arrival starts and finishes. */
+  from: number;
+  to: number;
+  /** Shape of one item's own arrival. */
+  curve: (t: number) => number;
+  /** `stagger`'s overlap: 1 arrives as one body, 0 strictly one after another. */
+  overlap: number;
+}
+
+const ENTRANCE: Record<EntranceId, EntranceLanguage> = {
+  /** Atelier — crafted. Part 4's "soft settle": damp toward rest, short. */
+  settle: { from: 0, to: 0.55, curve: easeOutExpo, overlap: 0.62 },
+  /** Observatory — discovered. One slow spatial reveal across the whole approach, calm at both ends. */
+  reveal: { from: 0, to: 1, curve: easeInOutSine, overlap: 0.95 },
+  /** Garden — alive. Unhurried and strictly sequential: each thing grows after the last. */
+  emerge: { from: 0.05, to: 0.95, curve: easeOutCubic, overlap: 0.25 },
+  /** Blueprint — engineered. A plotter: constant rate, one element at a time, finished early. */
+  construct: { from: 0, to: 0.62, curve: clamp01, overlap: 0.1 },
+};
+
+/**
+ * One item's arrival inside a staggered group, in this world's language.
+ *
+ * `progress` is the section's raw 0–1 entry progress; the world's own span is
+ * applied inside, so a call site never has to know where in the approach its
+ * scenery chooses to arrive.
+ */
+export function entranceStagger(id: EntranceId, progress: number, index: number, count: number): number {
+  const language = ENTRANCE[id];
+  const span = Math.max(1e-6, language.to - language.from);
+  const ramp = clamp01((progress - language.from) / span);
+  return language.curve(stagger(ramp, index, count, language.overlap));
+}
+
+/** The same arrival for something that enters as one body rather than as a group. */
+export function entranceEase(id: EntranceId, progress: number): number {
+  return entranceStagger(id, progress, 0, 1);
+}

@@ -6,10 +6,16 @@ import * as THREE from "three";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import { seededRandom } from "@/lib/experience/random";
+import {
+  dampFactor,
+  type EntranceId,
+  entranceEase,
+  SCENE_SMOOTHING,
+} from "@/lib/experience/scene-motion";
 
 import { sceneScroll } from "@/lib/experience/scene-scroll";
 
-import { heroShellSpin } from "./hero-sculpture";
+import { heroShellSpin } from "./hero";
 import { sceneSectionEnvelope } from "../scene/camera-rig";
 import { arcSlotPosition, fibonacciSpherePoints, HERO_SCULPTURE_RADIUS } from "../scene/geometry";
 
@@ -20,6 +26,8 @@ interface AboutFragmentsProps {
   budget: SceneBudget;
   /** This section's waypoint index: `entry` drives the scatter-to-reorganize, `exit` the condense-away. */
   sectionIndex: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 interface Shard {
@@ -100,6 +108,7 @@ export function AboutFragments({
   reducedMotion,
   budget,
   sectionIndex,
+  entrance,
 }: AboutFragmentsProps) {
   const shardCount = budget.tier === "low" ? 4 : 7;
   const shards = useMemo(() => buildShards(shardCount), [shardCount]);
@@ -114,14 +123,23 @@ export function AboutFragments({
     // re-rendering the canvas at that rate is what `<ScrollPhysics>` avoids.
     const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
 
-    const damp = reducedMotion ? 1 : 1 - Math.pow(0.001, delta);
+    // `dampFactor`, not a re-typed `1 - Math.pow(0.001, delta)` — that literal
+    // is the exact fragment `scene-motion.ts` exists to have named once.
+    const follow = reducedMotion ? 1 : dampFactor(SCENE_SMOOTHING.glide, delta);
     // Reduced motion: land fully formed immediately, no scatter-to-order
     // choreography — the cluster still legibly represents About, just static.
     // `appear` pops the cluster to full scale fast — it's already the whole
     // shell, breaking apart, not growing from nothing. `formAmount` is the
     // slower position/rotation lerp from shell to arc.
-    const appear = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 0.12);
-    const formAmount = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0.05, 0.95);
+    // `appear` stays scroll-gated under reduced motion, unlike `formAmount`
+    // below: scroll is the story parameter, not an animation to switch off
+    // (D7). Forced to 1 it put the whole shard cluster over Hero's headline
+    // from the first frame, which is the loudest thing on the page in exactly
+    // the mode that asked for less. `formAmount` is a different question - it
+    // is the scatter-to-arc choreography, and landing that pose immediately is
+    // the designed still state.
+    const appear = THREE.MathUtils.smoothstep(entryProgress, 0, 0.12);
+    const formAmount = reducedMotion ? 1 : entranceEase(entrance, entryProgress);
     const envelope = appear * (1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1));
 
     shards.forEach((shard, index) => {
@@ -129,16 +147,20 @@ export function AboutFragments({
       if (!group) return;
 
       scratchPos.lerpVectors(shard.scattered, shard.target, formAmount);
-      group.position.lerp(scratchPos, damp);
+      group.position.lerp(scratchPos, follow);
 
       scratchQuat.slerpQuaternions(shard.scatteredQuat, shard.targetQuat, formAmount);
-      group.quaternion.slerp(scratchQuat, damp);
+      group.quaternion.slerp(scratchQuat, follow);
     });
 
     // Carries Hero's live spin into the shell's break-up, dying out as the
     // shards finish settling into the arc — one motion, not a handoff cut.
+    // The same applies laterally: Hero composes into the page's right-hand
+    // gutter rather than dead centre, so the shards begin where the shell
+    // actually was and travel to About's own home over the same ramp.
     outer.rotation.y = heroShellSpin.angle * (1 - formAmount);
-    outer.scale.setScalar(reducedMotion ? envelope : THREE.MathUtils.lerp(outer.scale.x, envelope, damp));
+    outer.position.x = heroShellSpin.x * (1 - formAmount);
+    outer.scale.setScalar(reducedMotion ? envelope : THREE.MathUtils.lerp(outer.scale.x, envelope, follow));
   });
 
   return (

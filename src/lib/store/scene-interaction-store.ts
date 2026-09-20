@@ -62,3 +62,24 @@ export function clearHoveredSkill(id: string): void {
   const state = useSceneInteractionStore.getState();
   if (state.hoveredSkillId === id) state.setHoveredSkillId(null);
 }
+
+/**
+ * The same pair for project cards (Phase L Part 6). `hoveredProjectId` was
+ * declared in Phase J and had no writer until now: every Projects variant
+ * picked its own reaction off a screen-space ray, against slabs that live in
+ * the page gutters while the cards live in the content column — so hovering a
+ * card lit nothing, and the canvas lit up only once the cursor had left the
+ * content entirely. Two layers sharing a scroll position and nothing else.
+ *
+ * Same fine-pointer gate and same last-writer-wins clear as the skill pair
+ * above, for the same reasons.
+ */
+export function publishHoveredProject(id: string): void {
+  if (!finePointerQuery?.matches) return;
+  useSceneInteractionStore.getState().setHoveredProjectId(id);
+}
+
+export function clearHoveredProject(id: string): void {
+  const state = useSceneInteractionStore.getState();
+  if (state.hoveredProjectId === id) state.setHoveredProjectId(null);
+}

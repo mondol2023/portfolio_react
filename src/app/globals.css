@@ -397,13 +397,11 @@
    * dark. Both extra layers are always rendered and switched with opacity, so
    * the theme difference costs no JavaScript and cannot flash on hydration.
    *
-   * Namespaced under `[data-scenery="atelier"]` (S13): the component reads
-   * only attributes and never subscribes to the scenery store, so a switch
-   * costs no re-render — `globals.css` is the only place that knows four
-   * looks exist. This block is `atelier`'s, moved here verbatim; nothing
-   * about the current backdrop is redesigned.
+   * Split in two (S13): the chassis below is unnamespaced and carries no
+   * look; each scenery's block supplies only colour. Namespacing the chassis
+   * left observatory and garden with five unstyled divs.
    */
-  [data-scenery="atelier"] .ambient {
+  .ambient {
     position: fixed;
     inset: 0;
     z-index: -10;
@@ -414,15 +412,13 @@
       --tone-soft 900ms ease;
   }
 
-  [data-scenery="atelier"] .ambient-blob {
+  .ambient-blob {
     position: absolute;
     border-radius: 9999px;
-    background: radial-gradient(circle at center, var(--tone-soft) 0%, transparent 70%);
-    filter: blur(60px);
     will-change: transform;
   }
 
-  [data-scenery="atelier"] .ambient-blob-a {
+  .ambient-blob-a {
     width: 46rem;
     height: 46rem;
     top: -16rem;
@@ -430,7 +426,7 @@
     animation: ambient-drift-a 34s ease-in-out infinite alternate;
   }
 
-  [data-scenery="atelier"] .ambient-blob-b {
+  .ambient-blob-b {
     width: 38rem;
     height: 38rem;
     top: 32%;
@@ -438,7 +434,7 @@
     animation: ambient-drift-b 44s ease-in-out infinite alternate;
   }
 
-  [data-scenery="atelier"] .ambient-blob-c {
+  .ambient-blob-c {
     width: 34rem;
     height: 34rem;
     bottom: -14rem;
@@ -446,9 +442,24 @@
     animation: ambient-drift-c 38s ease-in-out infinite alternate;
   }
 
+  /*
+   * Opt-in layers, so a new scenery inherits the three blobs and nothing else.
+   */
+  .ambient-rays,
+  .ambient-stars {
+    position: absolute;
+    display: none;
+  }
+
+  /* Atelier's own look: warm soft-focus fields, shafts by day, stars by night. */
+  [data-scenery="atelier"] .ambient-blob {
+    background: radial-gradient(circle at center, var(--tone-soft) 0%, transparent 70%);
+    filter: blur(60px);
+  }
+
   /* Light mode: angled light shafts from the top-left. */
   [data-scenery="atelier"] .ambient-rays {
-    position: absolute;
+    display: block;
     inset: -25% -20% auto -20%;
     height: 95%;
     background-image: repeating-linear-gradient(
@@ -468,7 +479,7 @@
 
   /* Dark mode: a tiled star field, a couple of stars per tile tinted by tone. */
   [data-scenery="atelier"] .ambient-stars {
-    position: absolute;
+    display: block;
     inset: 0;
     opacity: 0;
     transition: opacity 500ms ease;
@@ -492,27 +503,29 @@
    * Blueprint (Phase G): the drafting table, not a retint of the studio. The
    * three blobs become a fine cyan grid — the same DOM nodes `ambient.tsx`
    * always renders, so the switch costs no JavaScript here either — and the
-   * rays/stars layers are switched off outright rather than recoloured, since
-   * neither a light-shaft nor a star field belongs on a schematic.
+   * rays/stars layers are simply never opted into, since neither a
+   * light-shaft nor a star field belongs on a schematic.
    */
   [data-scenery="blueprint"] .ambient {
-    position: fixed;
-    inset: 0;
-    z-index: -10;
-    overflow: hidden;
-    pointer-events: none;
     background: var(--bg);
   }
 
+  /* Per theme for the same reason `skin.lineColor` is: one cyan cannot be the
+     line on both pages — the dark value was unprinted on paper. */
   [data-scenery="blueprint"] .ambient-blob {
-    position: absolute;
     inset: -10%;
+    border-radius: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(10, 111, 176, 0.3) 0 1px, transparent 1px 64px),
+      repeating-linear-gradient(90deg, rgba(10, 111, 176, 0.3) 0 1px, transparent 1px 64px);
+    filter: none;
+    opacity: 0.5;
+  }
+
+  .dark [data-scenery="blueprint"] .ambient-blob {
     background-image:
       repeating-linear-gradient(0deg, rgba(63, 184, 255, 0.16) 0 1px, transparent 1px 64px),
       repeating-linear-gradient(90deg, rgba(63, 184, 255, 0.16) 0 1px, transparent 1px 64px);
-    filter: none;
-    opacity: 0.5;
-    will-change: transform;
   }
 
   [data-scenery="blueprint"] .ambient-blob-a {
@@ -526,11 +539,6 @@
   /* Only one grid is needed for the read; the other two blobs stay in the DOM but contribute nothing. */
   [data-scenery="blueprint"] .ambient-blob-b,
   [data-scenery="blueprint"] .ambient-blob-c {
-    display: none;
-  }
-
-  [data-scenery="blueprint"] .ambient-rays,
-  [data-scenery="blueprint"] .ambient-stars {
     display: none;
   }
 
@@ -557,9 +565,56 @@
     animation-duration: 48s;
   }
 
-  [data-scenery="garden"] .ambient-rays,
-  [data-scenery="garden"] .ambient-stars {
-    display: none;
+  /*
+   * Observatory: night without a dark page — §4.2 keeps `--bg` fixed, so the
+   * sky is the star field. On in both themes; it is the scenery's identity,
+   * not its night mode.
+   */
+  [data-scenery="observatory"] .ambient-blob {
+    background: radial-gradient(circle at center, var(--tone-soft) 0%, transparent 62%);
+    filter: blur(80px);
+    opacity: 0.85;
+  }
+
+  [data-scenery="observatory"] .ambient-blob-a {
+    animation-duration: 64s;
+  }
+
+  [data-scenery="observatory"] .ambient-blob-b {
+    animation-duration: 76s;
+  }
+
+  [data-scenery="observatory"] .ambient-blob-c {
+    animation-duration: 70s;
+  }
+
+  /* Tone-tinted and steady on paper: white pinpricks would be invisible, and a
+     twinkle at this contrast reads as a rendering fault. */
+  [data-scenery="observatory"] .ambient-stars {
+    display: block;
+    inset: 0;
+    opacity: 0.5;
+    background-image:
+      radial-gradient(1.5px 1.5px at 18% 26%, var(--tone), transparent 100%),
+      radial-gradient(1.2px 1.2px at 67% 12%, var(--tone), transparent 100%),
+      radial-gradient(1.8px 1.8px at 41% 64%, var(--tone), transparent 100%),
+      radial-gradient(1.2px 1.2px at 84% 51%, var(--tone), transparent 100%),
+      radial-gradient(1.5px 1.5px at 53% 88%, var(--tone), transparent 100%),
+      radial-gradient(1.2px 1.2px at 9% 77%, var(--tone), transparent 100%);
+    background-size: 420px 360px;
+    background-repeat: repeat;
+  }
+
+  .dark [data-scenery="observatory"] .ambient-stars {
+    opacity: 1;
+    background-image:
+      radial-gradient(1.2px 1.2px at 18% 26%, rgba(226, 232, 240, 0.9), transparent 100%),
+      radial-gradient(1px 1px at 67% 12%, rgba(226, 232, 240, 0.6), transparent 100%),
+      radial-gradient(1.8px 1.8px at 41% 64%, var(--tone), transparent 100%),
+      radial-gradient(1px 1px at 84% 51%, rgba(226, 232, 240, 0.55), transparent 100%),
+      radial-gradient(1.6px 1.6px at 53% 88%, var(--tone), transparent 100%),
+      radial-gradient(1px 1px at 9% 77%, rgba(226, 232, 240, 0.5), transparent 100%);
+    animation: ambient-twinkle 11s ease-in-out infinite alternate;
   }
 }
 
@@ -674,22 +729,14 @@
     display: none;
   }
 
-  [data-scenery="atelier"] .ambient-blob,
-  [data-scenery="atelier"] .ambient-rays,
-  [data-scenery="atelier"] .ambient-stars {
+  .ambient-blob,
+  .ambient-rays,
+  .ambient-stars {
     animation: none !important;
   }
 
-  [data-scenery="atelier"] .ambient {
+  .ambient {
     transition: none;
-  }
-
-  [data-scenery="blueprint"] .ambient-blob {
-    animation: none !important;
-  }
-
-  [data-scenery="garden"] .ambient-blob {
-    animation: none !important;
   }
 
   [data-scene-inspecting="true"] #main {
@@ -738,6 +785,12 @@
  * `@layer utilities`. `user-select` is the part that matters: without it a
  * drag across a paragraph selects the paragraph.
  */
+/* Body only, never descendants: a link or a field keeps its own cursor even
+   when a drifter happens to pass behind it. */
+.scene-grabbable {
+  cursor: grab;
+}
+
 .scene-dragging,
 .scene-dragging * {
   cursor: grabbing;

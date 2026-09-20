@@ -6,7 +6,13 @@ import * as THREE from "three";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import { contentSafeFraction, gutterPixels } from "@/lib/experience/scene-layout";
-import { SCENE_SMOOTHING, clampDelta, damp, easeOutCubic, stagger } from "@/lib/experience/scene-motion";
+import {
+  SCENE_SMOOTHING,
+  clampDelta,
+  damp,
+  type EntranceId,
+  entranceStagger,
+} from "@/lib/experience/scene-motion";
 import type { ScenePalette } from "@/lib/experience/scene-palette";
 import { sceneScroll } from "@/lib/experience/scene-scroll";
 import { signature } from "@/lib/experience/scene-signature";
@@ -23,6 +29,8 @@ interface ExperienceTimelineProps {
   reducedMotion: boolean;
   /** This section's waypoint index: `entry` raises the structure, `exit` flattens it to a line. */
   sectionIndex: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 interface Station {
@@ -188,6 +196,7 @@ export function ExperienceTimeline({
   budget,
   reducedMotion,
   sectionIndex,
+  entrance,
 }: ExperienceTimelineProps) {
   const stations = useMemo(
     () => buildStations(experiences, palette, STATION_LIMIT[budget.tier]),
@@ -304,10 +313,9 @@ export function ExperienceTimeline({
     // §5 beat 4 opens onto a volume "already lit and waiting", so the structure
     // finishes raising behind the covering panel. Outside the moment
     // `signature.commit` is 0 and this is the ordinary entrance.
-    const raising = Math.max(
-      reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1),
-      signature.active ? signature.commit : 0,
-    );
+    // Raw, not smoothstepped: since Part 4 the world's own entrance curve is
+    // the only shaping applied to the ordinary entrance.
+    const raising = Math.max(reducedMotion ? 1 : entryProgress, signature.active ? signature.commit : 0);
     // Phase 14's handoff to Contact, windows unchanged: the structure thins
     // across 0.15–0.85 of the exit and only fades once flat.
     const flatten = reducedMotion ? 0 : THREE.MathUtils.smoothstep(exitProgress, 0.15, 0.85);
@@ -355,7 +363,7 @@ export function ExperienceTimeline({
 
       // The wave runs away down the corridor on entry, so the bay you are
       // standing in raises first and the far end arrives last.
-      const wave = reducedMotion ? 1 : easeOutCubic(stagger(raising, index, stations.length, 0.5));
+      const wave = reducedMotion ? 1 : entranceStagger(entrance, raising, index, stations.length);
       // Height is what the flatten takes: piers hang from their ribs and lose
       // that hang entirely, leaving the ribs as one line at the eyeline.
       const standing = wave * (1 - flatten);
@@ -438,7 +446,16 @@ export function ExperienceTimeline({
     const plateDepth = Math.max(MIN_DEPTH, camera.position.z - (root.position.z + PLATE_Z));
     const plateHalfH = halfAtUnit * plateDepth;
     const plateHalfW = plateHalfH * camera.aspect;
-    const plateOpacity = fade * (palette.dark ? 0.3 : 0.16) * (1 - flatten);
+    // Light mode is the asymmetric case: `plateColor` is `palette.deep` there
+    // (lightness ~0.17), so every point of opacity is subtracted from a white
+    // page directly behind the reading column. At the 0.16 this used to carry,
+    // the two plates cost the Experience copy roughly half its contrast
+    // (measured over the rendered page: h3 10.6:1 -> 5.6:1, body 9.4 -> 5.2,
+    // the muted meta line 3.4 -> 2.1). At 0.09 that recovers to 8.8 / 8.0 /
+    // 3.0 and the corridor reads *better*, because the piers and rails stop
+    // merging into one flat green field. Dark mode keeps 0.3: there the
+    // plates are lighter than the page and add nothing over the type.
+    const plateOpacity = fade * (palette.dark ? 0.3 : 0.09) * (1 - flatten);
     if (ceilingMaterialRef.current) ceilingMaterialRef.current.opacity = plateOpacity;
     if (floorMaterialRef.current) floorMaterialRef.current.opacity = plateOpacity;
 

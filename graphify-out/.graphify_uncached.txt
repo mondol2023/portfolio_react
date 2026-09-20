@@ -1,9 +1,0 @@
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\AGENTS.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\CLAUDE.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\GAME_LAYER_PLAN.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\GAMIFICATION_PLAN.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\IMMERSIVE_3D_WORLD_PLAN.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\README.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\SCENERY_SYSTEM_PLAN.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\THREE_D_EXPERIENCE_PLAN.md
-C:\Users\Administrator\Desktop\claude\portfolio\my-portfolio\src\game\README.md

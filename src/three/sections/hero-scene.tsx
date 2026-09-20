@@ -1,8 +1,9 @@
 "use client";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
+import type { SceneryDefinition } from "@/lib/experience/scenery";
 
-import { HeroSculpture } from "../objects/hero-sculpture";
+import { HeroSculpture } from "../objects/hero";
 
 interface HeroSceneProps {
   tone: string;
@@ -10,15 +11,16 @@ interface HeroSceneProps {
   reducedMotion: boolean;
   budget: SceneBudget;
   pointer: { current: { x: number; y: number } };
+  scenery: SceneryDefinition;
 }
 
 /**
- * Hero's slice of the persistent canvas — just the sculpture for now.
- * Section-scene wrappers exist (rather than mounting objects directly in
- * `SceneCanvas`) so each section's local scroll math and future secondary
- * elements stay scoped to their own small file as later phases add them.
+ * Hero's slice of the persistent canvas — the per-scenery form, dispatched on
+ * `scenery.geometry` by `objects/hero`. Section-scene wrappers exist (rather
+ * than mounting objects directly in `SceneCanvas`) so each section's local
+ * scroll math and secondary elements stay scoped to their own small file.
  */
-export function HeroScene({ tone, toneSoft, reducedMotion, budget, pointer }: HeroSceneProps) {
+export function HeroScene({ tone, toneSoft, reducedMotion, budget, pointer, scenery }: HeroSceneProps) {
   return (
     <HeroSculpture
       tone={tone}
@@ -31,6 +33,7 @@ export function HeroScene({ tone, toneSoft, reducedMotion, budget, pointer }: He
       // About → Skills, instead of lingering behind every later section.
       exitIndex={1}
       budget={budget}
+      scenery={scenery}
     />
   );
 }

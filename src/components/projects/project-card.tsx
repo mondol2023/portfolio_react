@@ -1,6 +1,6 @@
 "use client";
 
-import { type PointerEvent, useCallback, useRef } from "react";
+import { type PointerEvent, useCallback, useEffect, useRef } from "react";
 import { motion, useMotionValue, useMotionValueEvent, useSpring, useTransform } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,6 +13,7 @@ import { SPRING } from "@/lib/experience/springs";
 import { SCROLL_SUSPEND_VELOCITY, useScrollVelocity } from "@/lib/experience/use-scroll-velocity";
 import { useFinePointer } from "@/lib/hooks/use-media-query";
 import { useMotionPreference } from "@/lib/hooks/use-motion-preference";
+import { clearHoveredProject, publishHoveredProject } from "@/lib/store/scene-interaction-store";
 import type { Project } from "@/lib/types/content";
 import { cn } from "@/lib/utils/cn";
 import { formatYearRange } from "@/lib/utils/dates";
@@ -148,6 +149,20 @@ export function ProjectCard({
     tiltZTarget.set(0);
   }, [rotateXTarget, rotateYTarget, tiltZTarget]);
 
+  // Hand-off to the 3D deck behind the page, on the same imperative-store
+  // pattern the skill pills use: the canvas is `pointer-events-none` and
+  // cannot raycast a card, so the card has to say which project it is. Wired
+  // unconditionally — unlike the tilt, this is not a fine-pointer effect, the
+  // publisher applies that gate itself — and on focus as well as hover, so a
+  // keyboard reaches the same reaction.
+  const announce = useCallback(() => publishHoveredProject(project.id), [project.id]);
+  const withdraw = useCallback(() => clearHoveredProject(project.id), [project.id]);
+
+  // A scenery switch swaps this card for `PlansheetCard` mid-hover, and an
+  // unmounted card never gets its `pointerleave` — without this the scene
+  // would hold a highlight on a card that no longer exists.
+  useEffect(() => withdraw, [withdraw]);
+
   return (
     <article
       className={cn(
@@ -159,7 +174,13 @@ export function ProjectCard({
       )}
       style={tiltEnabled ? { perspective: "1400px" } : undefined}
       onPointerMove={tiltEnabled ? handlePointerMove : undefined}
-      onPointerLeave={tiltEnabled ? handlePointerLeave : undefined}
+      onPointerEnter={announce}
+      onPointerLeave={() => {
+        if (tiltEnabled) handlePointerLeave();
+        withdraw();
+      }}
+      onFocus={announce}
+      onBlur={withdraw}
     >
       <motion.div
         className="flex flex-1 flex-col"

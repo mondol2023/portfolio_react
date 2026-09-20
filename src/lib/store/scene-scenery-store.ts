@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { getSceneryDefinition, SCENERY_IDS, type SceneryDefinition, type SceneryId } from "@/lib/experience/scenery";
-import { runSceneryCrossfade } from "@/lib/experience/scenery-transition";
+import { cancelSceneryCrossfade, runSceneryCrossfade } from "@/lib/experience/scenery-transition";
 
 /**
  * Global scenery state (S1 of `SCENERY_SYSTEM_PLAN.md`), in two places at
@@ -82,6 +82,9 @@ export const useSceneSceneryStore = create<SceneSceneryState>()((set, get) => ({
     });
   },
   setSceneryInstant: (id) => {
+    // The flag can flip mid-crossfade; without this the abandoned timeline
+    // commits its target on top of `id` and leaves the veil down for good.
+    cancelSceneryCrossfade();
     writeAttribute(id);
     set({ id, renderScenery: getSceneryDefinition(id) });
   },

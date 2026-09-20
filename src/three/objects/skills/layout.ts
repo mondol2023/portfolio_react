@@ -30,7 +30,12 @@ export const NODE_RADIUS = 0.11;
 /** Loose per-category cluster centres arranged around a ring, so the graph reads as distinct constellations rather than one blob. */
 export const CLUSTER_RADIUS = 1.7;
 
-export function buildNodes(skills: Skill[], maxNodes: number, tone: string): GalaxyNode[] {
+/**
+ * @param hueSpread `scenery.hueSpread` — how far category coding may rotate a
+ *   node's hue from the scenery accent, as a fraction of the wheel. `0` keeps
+ *   every node one ink (blueprint); category then reads as lightness alone.
+ */
+export function buildNodes(skills: Skill[], maxNodes: number, tone: string, hueSpread: number): GalaxyNode[] {
   const random = seededRandom(29);
   const ranked = skills
     .filter((skill) => skill.enabled)
@@ -63,9 +68,14 @@ export function buildNodes(skills: Skill[], maxNodes: number, tone: string): Gal
       .clone()
       .add(new THREE.Vector3((random() - 0.5) * 0.9, (random() - 0.5) * 0.7, (random() - 0.5) * 0.6));
 
+    // Category coding, centred on the scenery's own accent rather than
+    // sweeping the wheel from it. `spread` runs -0.5..0.5 so the band sits
+    // symmetrically around the accent instead of drifting off one side, and
+    // the lightness ladder keeps categories separable even at `hueSpread: 0`.
     const categoryIndex = Math.max(0, SKILL_CATEGORIES.indexOf(skill.category));
-    const hue = (baseHsl.h + categoryIndex / SKILL_CATEGORIES.length) % 1;
-    const color = new THREE.Color().setHSL(hue, Math.max(baseHsl.s, 0.45), 0.6);
+    const spread = SKILL_CATEGORIES.length > 1 ? categoryIndex / (SKILL_CATEGORIES.length - 1) - 0.5 : 0;
+    const hue = (baseHsl.h + spread * hueSpread + 1) % 1;
+    const color = new THREE.Color().setHSL(hue, Math.max(baseHsl.s, 0.45), 0.6 + spread * 0.2);
 
     return {
       skill,

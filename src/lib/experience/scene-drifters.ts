@@ -30,6 +30,8 @@ export interface DrifterSpec {
   bobPeriod: number;
   /** Constant ambient rotation, rad/s per axis. Zero on two of every five. */
   spin: { x: number; y: number; z: number };
+  /** Mount attitude, radians. Also the reduced-motion pose — spin accumulates from here. */
+  rest: { x: number; y: number; z: number };
   metal: boolean;
 }
 
@@ -63,6 +65,10 @@ export function buildDrifters(count: number): DrifterSpec[] {
     // Two of every five hold still and only travel, so the frame is never
     // "everything rotating at once".
     const still = index % 5 === 1 || index % 5 === 3;
+    // Authored before the ladders below so every drifter reads as *placed*
+    // rather than axis-aligned — the pose reduced motion keeps, and the one
+    // the first frame of a normal load starts from.
+    const rest = { x: random() * Math.PI, y: random() * Math.PI * 2, z: random() * Math.PI };
 
     return {
       form: FORMS[index % FORMS.length] ?? "shard",
@@ -77,6 +83,7 @@ export function buildDrifters(count: number): DrifterSpec[] {
       spin: still
         ? { x: 0, y: 0, z: 0 }
         : { x: spins * 0.6, y: spins, z: spins * 0.35 },
+      rest,
       metal: index % 3 === 2,
     };
   });

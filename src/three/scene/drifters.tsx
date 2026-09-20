@@ -16,8 +16,10 @@ import {
   type SpringState,
 } from "@/lib/experience/scene-motion";
 import type { ScenePalette } from "@/lib/experience/scene-palette";
-import { scenePointer, setSceneDragging } from "@/lib/experience/scene-pointer";
+import { scenePointer, setSceneDragging, setSceneGrabbable } from "@/lib/experience/scene-pointer";
+import type { MaterialFamilyId } from "@/lib/experience/scenery";
 import {
+  createHoverPicker,
   dragPlaneThroughPoint,
   dragPointOnPlane,
   pickNearest,
@@ -35,6 +37,12 @@ interface DriftersProps {
   pointer: { current: { x: number; y: number } };
   /** False on a coarse pointer: a finger has no grab, and mobile must not fake one. */
   grabEnabled: boolean;
+  /**
+   * The scenery's declared material family. Drifters cross every section of
+   * every world, so they are the one layer that makes a world's material
+   * rule look either universal or merely decorative.
+   */
+  materials: MaterialFamilyId;
 }
 
 /** Furthest a drag may carry one, as a multiple of the viewport half-extent. */
@@ -53,6 +61,8 @@ interface DrifterRuntime {
   offsetZ: SpringState;
   /** 0–1 grab reaction: swells and warms while held. */
   hold: number;
+  /** 0–1 hover reaction. A fraction of `hold`'s weight — see the frame loop. */
+  hover: number;
   /** This frame's lane position, in the group's own space. */
   homeX: number;
   homeY: number;
@@ -64,6 +74,7 @@ function newRuntime(): DrifterRuntime {
     offsetY: { value: 0, velocity: 0 },
     offsetZ: { value: 0, velocity: 0 },
     hold: 0,
+    hover: 0,
     homeX: 0,
     homeY: 0,
   };
@@ -96,7 +107,7 @@ function buildGeometry(spec: DrifterSpec, segments: number): THREE.BufferGeometr
  * grab is a real ray against the registered meshes (S7, §6.2); the follow
  * tracks a plane through the grab point (§6.4), not camera-local trig.
  */
-export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled }: DriftersProps) {
+export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled, materials }: DriftersProps) {
   const specs = useMemo(() => buildDrifters(DRIFTER_COUNT[budget.tier]), [budget.tier]);
 
   // One geometry and one material per drifter, disposed by hand — `dispose={null}`
@@ -106,25 +117,41 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
     [specs, budget.segments],
   );
 
-  const materials = useMemo(
+  // Honours `scenery.materials` (S3). Until Phase L that field was declared
+  // on `SceneryDefinition` and read by nothing, so these were lit, shaded,
+  // opaque solids in all four worlds — including blueprint, which declares
+  // `materials: "unlit"`, `toneMapping: "none"` and `shadowsDisabled`, i.e.
+  // the one world specified to contain no shaded solid at all. Fixing the
+  // hero alone left the contradiction floating past it every few seconds.
+  const drifterMaterials = useMemo(
     () =>
-      specs.map(
-        (spec) =>
-          new THREE.MeshStandardMaterial({
-            color: spec.metal ? palette.fill : palette.surface,
-            emissive: palette.accent,
-            emissiveIntensity: 0.04,
-            metalness: spec.metal ? 0.78 : 0.14,
-            roughness: spec.metal ? 0.32 : 0.62,
-            transparent: true,
-            opacity: 0,
-          }),
+      specs.map((spec) =>
+        materials === "unlit"
+          ? // A drafting world draws; it does not shade. One ink for every
+            // drifter, matching `hueSpread: 0` — a schematic is drawn in one
+            // ink, so a "metal" drifter is not a different colour here, and
+            // nothing in this branch responds to a light.
+            new THREE.MeshBasicMaterial({
+              color: palette.accent,
+              wireframe: true,
+              transparent: true,
+              opacity: 0,
+            })
+          : new THREE.MeshStandardMaterial({
+              color: spec.metal ? palette.fill : palette.surface,
+              emissive: palette.accent,
+              emissiveIntensity: 0.04,
+              metalness: spec.metal ? 0.78 : 0.14,
+              roughness: spec.metal ? 0.32 : 0.62,
+              transparent: true,
+              opacity: 0,
+            }),
       ),
-    [specs, palette.accent, palette.fill, palette.surface],
+    [specs, materials, palette.accent, palette.fill, palette.surface],
   );
 
   useEffect(() => () => geometries.forEach((geometry) => geometry.dispose()), [geometries]);
-  useEffect(() => () => materials.forEach((material) => material.dispose()), [materials]);
+  useEffect(() => () => drifterMaterials.forEach((material) => material.dispose()), [drifterMaterials]);
 
   const groupRef = useRef<THREE.Group>(null);
   const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
@@ -134,6 +161,9 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
 
   /** Index of the drifter currently in hand, or -1. */
   const grabbed = useRef(-1);
+  /** Index under the cursor at rest, or -1. Throttled and scroll-gated (§6.2). */
+  const hovered = useRef(-1);
+  const pickHover = useMemo(() => createHoverPicker(), []);
   const lastStamp = useRef(scenePointer.pressStamp);
   /** The drag surface (§6.4.2), rebuilt at the moment of the grab. */
   const dragPlane = useRef(new THREE.Plane());
@@ -145,7 +175,13 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
 
   // A drag left mid-flight by an unmount would otherwise strand the page in
   // the grabbing cursor.
-  useEffect(() => () => setSceneDragging(false), []);
+  useEffect(
+    () => () => {
+      setSceneDragging(false);
+      setSceneGrabbable(false);
+    },
+    [],
+  );
 
   // Every registered mesh must unregister when the whole group unmounts, not
   // only when an individual ref callback fires with `null`.
@@ -162,7 +198,10 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
 
     const delta = clampDelta(rawDelta);
     const dim = 1 - signature.dim;
-    time.current += delta * (1 - signature.hold);
+    // The lane clock. Reduced motion never advances it, so `homeX`/`homeY`
+    // stay the phase-seeded pose the specs author rather than creeping a
+    // demand-frame's worth of travel every time a scroll wakes the renderer.
+    if (!reducedMotion) time.current += delta * (1 - signature.hold);
 
     // Follow the lens, a beat late. Snapped on the first frame and under
     // reduced motion, neither of which has a continuous loop to catch up in.
@@ -197,7 +236,9 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
         Math.sin((time.current / spec.bobPeriod + spec.phase) * Math.PI * 2) * spec.bobFrac * halfH;
     }
 
-    if (dragging && (scenePointer.pressed || grabbed.current >= 0)) {
+    // Both rays below test the group's children, so its world matrix must be
+    // this frame's.
+    if (dragging) {
       camera.updateMatrixWorld();
       group.updateMatrixWorld();
     }
@@ -226,12 +267,25 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
       setSceneDragging(false);
     }
 
+    // Resting hover: without it a drifter was grabbable with no sign that it
+    // was. Polled at rest only — under a press the grabbed one owns the ray.
+    if (dragging && !scenePointer.pressed) {
+      const hit = pickHover(camera, pointer.current);
+      hovered.current = hit ? meshRefs.current.indexOf(hit.object as THREE.Mesh) : -1;
+    } else {
+      hovered.current = -1;
+    }
+    setSceneGrabbable(hovered.current >= 0);
+
     for (let index = 0; index < specs.length; index += 1) {
       const spec = specs[index];
       const item = runtime.current[index];
       const mesh = meshRefs.current[index];
       const material = mesh?.material;
-      if (!spec || !item || !mesh || !(material instanceof THREE.MeshStandardMaterial)) continue;
+      // Widened from `MeshStandardMaterial` when the unlit family landed: the
+      // old guard would have skipped every blueprint drifter outright, leaving
+      // them stuck at the opacity 0 they are built with.
+      if (!spec || !item || !mesh || !(material instanceof THREE.Material)) continue;
 
       const halfH = halfAtUnit * spec.depth;
       const halfW = halfH * camera.aspect;
@@ -272,6 +326,11 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
       }
 
       item.hold = damp(item.hold, held ? 1 : 0, SCENE_SMOOTHING.tight, delta);
+      // Hover and hold are separate channels on purpose: hover is an offer,
+      // hold is an answer, and they must not look like the same event. Every
+      // hover number below is a small fraction of its `hold` counterpart.
+      item.hover = damp(item.hover, hovered.current === index ? 1 : 0, SCENE_SMOOTHING.tight, delta);
+      const notice = item.hover * (1 - item.hold);
 
       mesh.position.set(
         item.homeX + item.offsetX.value,
@@ -280,13 +339,17 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
       );
 
       // Held objects tumble, so the two forms that never rotate still answer
-      // the grab. Otherwise this is the one constant ambient rotation allowed.
-      const spinUp = 1 + item.hold * 6;
-      mesh.rotation.x += (spec.spin.x + item.hold * 0.18) * delta * spinUp;
-      mesh.rotation.y += (spec.spin.y + item.hold * 0.26) * delta * spinUp;
-      mesh.rotation.z += spec.spin.z * delta * spinUp;
+      // the grab. Otherwise this is the one constant ambient rotation allowed
+      // — and under reduced motion it is not allowed at all: the mesh keeps
+      // the `rest` attitude it mounted with.
+      const spinUp = 1 + item.hold * 6 + notice * 0.45;
+      if (!reducedMotion) {
+        mesh.rotation.x += (spec.spin.x + item.hold * 0.18) * delta * spinUp;
+        mesh.rotation.y += (spec.spin.y + item.hold * 0.26) * delta * spinUp;
+        mesh.rotation.z += spec.spin.z * delta * spinUp;
+      }
 
-      mesh.scale.setScalar(spec.sizeFrac * halfH * (1 + item.hold * 0.22));
+      mesh.scale.setScalar(spec.sizeFrac * halfH * (1 + item.hold * 0.22 + notice * 0.06));
 
       // The reading column's own shadow: full presence out in the gutter,
       // `COLUMN_FLOOR` once a drifter is over the text. It crosses behind the
@@ -295,8 +358,12 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
       const clear = THREE.MathUtils.smoothstep(xFrac, safeFrac * 0.55, safeFrac + 0.06);
       const presence = THREE.MathUtils.lerp(COLUMN_FLOOR, 1, clear);
 
-      material.opacity = (palette.dark ? 0.66 : 0.52) * presence * dim;
-      material.emissiveIntensity = 0.04 + item.hold * 0.5;
+      material.opacity = Math.min(1, (palette.dark ? 0.66 : 0.52) * presence * dim * (1 + notice * 0.35));
+      // Emissive is a lit-material concept; the unlit family has no such
+      // property and says "held" through opacity alone.
+      if (material instanceof THREE.MeshStandardMaterial) {
+        material.emissiveIntensity = 0.04 + item.hold * 0.5 + notice * 0.12;
+      }
     }
   });
 
@@ -311,7 +378,8 @@ export function Drifters({ palette, budget, reducedMotion, pointer, grabEnabled 
             unregisterRefs.current[index] = instance ? registerInteractive(instance) : () => {};
           }}
           geometry={geometries[index]}
-          material={materials[index]}
+          material={drifterMaterials[index]}
+          rotation={[spec.rest.x, spec.rest.y, spec.rest.z]}
           dispose={null}
         />
       ))}

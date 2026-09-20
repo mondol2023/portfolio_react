@@ -96,11 +96,10 @@ export function SceneCanvas({
   // actually be grabbed — a touch device and reduced motion both opt out.
   const finePointer = useFinePointer();
   const grabEnabled = driftersEnabled && finePointer;
-  // Observatory's monoliths (Phase I, §6.4) need the same press tracking
-  // independent of the "three-drifters" toggle — dragging a project panel is
-  // not the same feature as the floating background shapes.
-  const monolithsActive = scenery.projectsVariant === "monoliths";
-  usePointerPress((grabEnabled || (monolithsActive && finePointer)) && !reducedMotion);
+  // Every Projects variant but the corridor needs `scenePointer`, and none of
+  // them is the drifters feature — blueprint's click-to-raise died with it.
+  const pressVariant = scenery.projectsVariant !== "corridor";
+  usePointerPress((grabEnabled || (pressVariant && finePointer)) && !reducedMotion);
 
   // The set piece plays on the lead project's panel. Subscribed, not polled:
   // this changes once, when the section's bridge hands its data over.
@@ -183,7 +182,7 @@ export function SceneCanvas({
         inspectActive={inspectActive}
       />
       {inspectActive ? <InspectControls /> : null}
-      <SceneLighting palette={palette} budget={effectiveBudget} scenery={scenery} />
+      <SceneLighting palette={palette} budget={effectiveBudget} scenery={scenery} reducedMotion={reducedMotion} />
       <SceneEnvironment budget={environmentBudget} palette={palette} reducedMotion={reducedMotion} />
       <HeroScene
         tone={palette.accent}
@@ -191,12 +190,14 @@ export function SceneCanvas({
         reducedMotion={reducedMotion}
         budget={effectiveBudget}
         pointer={pointer}
+        scenery={scenery}
       />
       <AboutScene
         tone={palette.accent}
         toneSoft={palette.wash}
         reducedMotion={reducedMotion}
         budget={effectiveBudget}
+        scenery={scenery}
       />
       {/* No `pointer`: the skill graph reacts to the DOM pill the reader is
           actually on (`scene-interaction-store`), not to where the cursor
@@ -208,7 +209,7 @@ export function SceneCanvas({
         budget={effectiveBudget}
         scenery={scenery}
       />
-      <ExperienceScene palette={palette} budget={effectiveBudget} reducedMotion={reducedMotion} />
+      <ExperienceScene palette={palette} budget={effectiveBudget} reducedMotion={reducedMotion} scenery={scenery} />
       <ProjectsScene
         palette={palette}
         budget={effectiveBudget}
@@ -225,6 +226,7 @@ export function SceneCanvas({
           budget={effectiveBudget}
           reducedMotion={reducedMotion}
           pointer={pointer}
+          materials={scenery.materials}
           grabEnabled={grabEnabled}
         />
       ) : null}

@@ -129,10 +129,51 @@ function atLightness(color: Rgb, lightness: number): Rgb {
   return fromHsl(h, s, Math.min(1, Math.max(0, lightness)));
 }
 
+/** WCAG relative luminance. Gamma-correct, unlike `luminance` above, which only
+ *  answers "is this page dark?". Hue rotation is safe against this one. */
+function relativeLuminance({ r, g, b }: Rgb): number {
+  const channel = (value: number) => {
+    const c = value / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+/** The luminance a neutral grey at this HSL lightness would have. */
+function neutralLuminance(lightness: number): number {
+  return relativeLuminance(fromHsl(0, 0, lightness));
+}
+
+/** Holds hue and chroma, moves lightness until the colour hits `target`.
+ *  Bisected: lightness → luminance has no closed form once hue is involved. */
+function atLuminance(color: Rgb, target: number): Rgb {
+  const { h, s } = toHsl(color);
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 20; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (relativeLuminance(fromHsl(h, s, mid)) < target) lo = mid;
+    else hi = mid;
+  }
+  return fromHsl(h, s, (lo + hi) / 2);
+}
+
+/** A skin value that may differ by page theme. An authored colour is a claim
+ *  about the page under it, and one value for both always underserves one:
+ *  blueprint's single cyan read 8.95:1 dark and 2.12:1 on paper. */
+export type ThemedSkinValue<T> = T | { light: T; dark: T };
+
+function byTheme<T>(value: ThemedSkinValue<T>, dark: boolean): T {
+  if (typeof value === "object" && value !== null && "light" in value) {
+    return dark ? value.dark : value.light;
+  }
+  return value;
+}
+
 /** Post-processes a derived palette — see `scenery.ts`'s `ScenerySkin`. */
 export interface ScenerySkin {
   /** Overrides the line/accent colour outright, regardless of section `--tone`. */
-  lineColor?: string;
+  lineColor?: ThemedSkinValue<string>;
   /** Rotates the accent's hue toward this target (degrees) by `hueBlend` — e.g. observatory's cold 210°. */
   hueTowardDeg?: number;
   /** How far toward `hueTowardDeg` to rotate, 0–1. Defaults to 1 (all the way) once `hueTowardDeg` is set. */
@@ -140,7 +181,7 @@ export interface ScenerySkin {
   /** Multiplies the accent's saturation. */
   chromaScale?: number;
   /** Forces `surface`'s lightness (0–1), keeping its hue and chroma — e.g. observatory staying dark in light mode. */
-  surfaceLightness?: number;
+  surfaceLightness?: ThemedSkinValue<number>;
 }
 
 /** Shortest signed distance (0–1 hue wheel) from `from` to `to`, so a hue rotation always takes the near way round. */
@@ -180,8 +221,18 @@ export function buildScenePalette(tone: string, background: string): ScenePalett
     fill: toHex(atLightness(mix(page, accent, 0.5), dark ? 0.42 : 0.6)),
     // Mid-lightness in both themes: geometry must separate from the page
     // rather than sink into it, which a straight tint of `--bg` would do.
-    surface: toHex(atLightness(mix(page, accent, dark ? 0.22 : 0.3), dark ? 0.31 : 0.64)),
-    deep: toHex(atLightness(mix(page, accent, 0.18), dark ? 0.06 : 0.17)),
+    //
+    // Held as a luminance, not an HSL lightness: the accent mixed in is a
+    // different hue per section, and HSL lightness does not track brightness
+    // across hues. A fixed 0.31 ranged 1.98–3.46:1 by section; this is 2.4:1
+    // everywhere, in both themes.
+    surface: toHex(
+      atLuminance(mix(page, accent, dark ? 0.22 : 0.3), neutralLuminance(dark ? 0.31 : 0.64)),
+    ),
+    // Backing plates take `horizon`'s rule: on paper there is room below to go
+    // dark, on a near-black page there is not. A fixed 0.06 read 1.01–1.07:1
+    // against `--bg`, i.e. no depth stack at all in dark mode.
+    deep: toHex(atLightness(mix(page, accent, 0.18), dark ? pageLightness + 0.13 : 0.17)),
     dark,
   };
 }
@@ -202,14 +253,17 @@ export function applyScenerySkin(palette: ScenePalette, skin: ScenerySkin | unde
   let accent = parseHex(palette.accent) ?? FALLBACK_ACCENT;
 
   if (skin.lineColor) {
-    accent = parseHex(skin.lineColor) ?? accent;
+    accent = parseHex(byTheme(skin.lineColor, palette.dark)) ?? accent;
   } else if (skin.hueTowardDeg !== undefined || skin.chromaScale !== undefined) {
     const hsl = toHsl(accent);
     const targetHue = skin.hueTowardDeg !== undefined ? (((skin.hueTowardDeg % 360) + 360) % 360) / 360 : hsl.h;
     const blend = skin.hueBlend ?? 1;
     const h = (hsl.h + hueDelta(hsl.h, targetHue) * blend + 1) % 1;
     const s = Math.min(1, Math.max(0, hsl.s * (skin.chromaScale ?? 1)));
-    accent = fromHsl(h, s, hsl.l);
+    // Rotate at constant luminance, not constant HSL lightness: the `--tone`
+    // ladder is tuned so each accent clears 4.5:1 on `--bg`, and lightness does
+    // not encode that. Holding it dropped garden's contact tone to 1.95:1.
+    accent = atLuminance(fromHsl(h, s, hsl.l), relativeLuminance(accent));
   } else if (skin.surfaceLightness === undefined) {
     return palette;
   }
@@ -218,7 +272,7 @@ export function applyScenerySkin(palette: ScenePalette, skin: ScenerySkin | unde
   const wash = mix(page, accent, palette.dark ? 0.34 : 0.26);
   const surface =
     skin.surfaceLightness !== undefined
-      ? toHex(atLightness(parseHex(palette.surface) ?? FALLBACK_BG, skin.surfaceLightness))
+      ? toHex(atLightness(parseHex(palette.surface) ?? FALLBACK_BG, byTheme(skin.surfaceLightness, palette.dark)))
       : palette.surface;
 
   return {

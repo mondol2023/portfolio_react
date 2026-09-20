@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
@@ -7,10 +7,13 @@ import type { ScenePalette } from "@/lib/experience/scene-palette";
 import { sceneTime } from "@/lib/experience/scene-timer";
 import type { SceneryDefinition, ThemedIntensity } from "@/lib/experience/scenery";
 
+import { heroShellSpin } from "../objects/hero/composition";
+
 interface SceneLightingProps {
   palette: ScenePalette;
   budget: SceneBudget;
   scenery: SceneryDefinition;
+  reducedMotion: boolean;
 }
 
 /** The key's rest position — orbited around when `scenery.lights.keyOrbit` is set. */
@@ -25,6 +28,8 @@ const KEY_ORBIT_AXIS = new THREE.Vector3()
   .crossVectors(new THREE.Vector3(0, 1, 0), KEY_BASE_POSITION.clone().negate().normalize())
   .normalize();
 const scratchKeyQuaternion = new THREE.Quaternion();
+/** The spot's offset from whatever it is aimed at — it tracks the hero's x. */
+const SPOT_BASE_X = 2.6;
 
 /**
  * One coherent lighting rig, shared by every section's objects: a soft key
@@ -46,23 +51,52 @@ const scratchKeyQuaternion = new THREE.Quaternion();
  * from `scenery.lights` instead of a hardcoded ternary, so a later scenery
  * re-times the rig by supplying different data, never a new branch here.
  */
-export function SceneLighting({ palette, budget, scenery }: SceneLightingProps) {
+export function SceneLighting({ palette, budget, scenery, reducedMotion }: SceneLightingProps) {
   const { dark } = palette;
   const { lights } = scenery;
   const pick = (themed: ThemedIntensity) => (dark ? themed.dark : themed.light);
 
   const keyRef = useRef<THREE.DirectionalLight>(null);
+  const spotRef = useRef<THREE.SpotLight>(null);
+  const spotTargetRef = useRef<THREE.Object3D>(null);
+
+  // `SpotLight.target` defaults to an Object3D that is never added to the
+  // scene, so it can only ever sit at the origin. Pointing it at a real,
+  // mounted object is what lets the cone follow the hero.
+  useEffect(() => {
+    const spot = spotRef.current;
+    const target = spotTargetRef.current;
+    if (spot && target) spot.target = target;
+  }, [lights.spot]);
 
   // A no-op whenever `keyOrbit` is null (every scenery but observatory): one
   // ref check per frame, no allocation. `sceneTime.elapsed` already carries
   // the active scenery's timescale (S6), so the orbit slows with everything
   // else in `garden` and speeds up in `blueprint` for free.
+  //
+  // Reduced motion holds `restAngle` instead (Part 10). Freezing the orbit is
+  // not enough on its own: `frameloop` is `"demand"` there, so an unguarded
+  // `elapsed` read does not animate — it teleports the key by however many
+  // seconds passed since the last scroll woke the renderer.
   useFrame(() => {
     const orbit = lights.keyOrbit;
     const key = keyRef.current;
-    if (!orbit || !key) return;
-    scratchKeyQuaternion.setFromAxisAngle(KEY_ORBIT_AXIS, sceneTime.elapsed * orbit.speed);
-    key.position.copy(KEY_BASE_POSITION).applyQuaternion(scratchKeyQuaternion);
+    if (orbit && key) {
+      const angle = sceneTime.elapsed * orbit.speed;
+      scratchKeyQuaternion.setFromAxisAngle(KEY_ORBIT_AXIS, angle);
+      key.position.copy(KEY_BASE_POSITION).applyQuaternion(scratchKeyQuaternion);
+    }
+
+    // The hero composes into the page's free edge, not at the origin
+    // (`heroColumnRightFraction`), and that edge moves with the viewport. A
+    // cone left aimed at the origin lights empty space beside it, so the
+    // target — and the light with it — track the form's live x.
+    const spot = spotRef.current;
+    const target = spotTargetRef.current;
+    if (spot && target) {
+      target.position.x = heroShellSpin.x;
+      spot.position.x = SPOT_BASE_X + heroShellSpin.x;
+    }
   });
 
   return (
@@ -99,23 +133,28 @@ export function SceneLighting({ palette, budget, scenery }: SceneLightingProps) 
         shadow-camera-bottom={-7}
       />
 
-      {/* Observatory's cone on the hero sculpture (§4.2, §9): a static light
-          reads polished metal as dead metal, so this is the one place besides
-          the key that earns an animated/shaped light. Targets the origin by
-          default (three.js's un-added `SpotLight.target`), which is exactly
-          where the hero sculpture's own group sits (`hero-sculpture.tsx`). */}
+      {/* Observatory's cone on the hero form (§4.2, §9): a static light reads
+          polished metal as dead metal, so this is the one place besides the
+          key that earns an animated/shaped light. It aims at `spotTargetRef`
+          below, which tracks the form's live x each frame — the hero composes
+          into the page's free right edge, so the origin is the one place it
+          is guaranteed not to be. */}
       {lights.spot && (
-        <spotLight
-          position={[2.6, 3.4, 3.4]}
-          angle={0.35}
-          penumbra={0.8}
-          intensity={pick(lights.spot)}
-          color={palette.key}
-          distance={12}
-          decay={2}
-          castShadow={budget.shadows && !scenery.shadowsDisabled}
-          shadow-mapSize={[1024, 1024]}
-        />
+        <>
+          <object3D ref={spotTargetRef} />
+          <spotLight
+            ref={spotRef}
+            position={[SPOT_BASE_X, 3.4, 3.4]}
+            angle={0.35}
+            penumbra={0.8}
+            intensity={pick(lights.spot)}
+            color={palette.key}
+            distance={12}
+            decay={2}
+            castShadow={budget.shadows && !scenery.shadowsDisabled}
+            shadow-mapSize={[1024, 1024]}
+          />
+        </>
       )}
 
       {/* Fill: weak, from the opposite corner, tinted rather than grey so the

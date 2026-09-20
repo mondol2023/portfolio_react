@@ -1,5 +1,9 @@
+"use client";
+
+import { useCallback, useEffect } from "react";
 import Link from "next/link";
 
+import { clearHoveredProject, publishHoveredProject } from "@/lib/store/scene-interaction-store";
 import type { Project } from "@/lib/types/content";
 import { cn } from "@/lib/utils/cn";
 import { formatYearRange } from "@/lib/utils/dates";
@@ -24,6 +28,11 @@ const MAX_TAGS = 4;
  * monospace metadata in brackets. Still one stretched link over the whole
  * article, the same accessibility contract `project-card.tsx` uses, since
  * that part of the pattern has nothing to do with which scenery is active.
+ *
+ * Client, not server, since Phase L Part 6: the sheet publishes its project id
+ * into `scene-interaction-store` on hover and focus so `plansheets.tsx` can
+ * light the matching drafting sheet behind the page — the same hand-off
+ * `project-card.tsx` makes for every other scenery.
  */
 export function PlansheetCard({ project, emphasis = false, className }: PlansheetCardProps) {
   const year = formatYearRange(project.startDate, project.endDate);
@@ -31,6 +40,11 @@ export function PlansheetCard({ project, emphasis = false, className }: Planshee
   const hiddenTags = project.technologies.length - visibleTags.length;
   const status = projectStatus(project);
   const scope = missionScope(project);
+
+  const announce = useCallback(() => publishHoveredProject(project.id), [project.id]);
+  const withdraw = useCallback(() => clearHoveredProject(project.id), [project.id]);
+  // Swapped out mid-hover by a scenery switch, same as `project-card.tsx`.
+  useEffect(() => withdraw, [withdraw]);
 
   return (
     <article
@@ -40,6 +54,10 @@ export function PlansheetCard({ project, emphasis = false, className }: Planshee
         emphasis && "sm:p-8",
         className,
       )}
+      onPointerEnter={announce}
+      onPointerLeave={withdraw}
+      onFocus={announce}
+      onBlur={withdraw}
     >
       <p className="flex items-center gap-3 text-xs tracking-widest text-fg-subtle uppercase">
         <span>[ {project.type} ]</span>

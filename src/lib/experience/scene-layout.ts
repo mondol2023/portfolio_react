@@ -36,3 +36,33 @@ export function gutterPixels(viewportWidth: number): number {
   const halfPx = Math.max(1, viewportWidth / 2);
   return (1 - contentSafeFraction(viewportWidth)) * halfPx;
 }
+
+/** The hero's own text block max-width (`max-w-4xl`), in CSS pixels. */
+export const HERO_COLUMN_MAX_PX = 896;
+
+/**
+ * Where the hero's text column ends, as a signed fraction of the viewport's
+ * half-width (`-1` = left edge, `0` = centre, `1` = right edge).
+ *
+ * `contentSafeFraction` models a *centred* column and so describes both
+ * gutters at once. Hero's block is narrower than the container and
+ * left-aligned inside it, which means its free space is entirely on one side
+ * and is not the symmetric gutter the other sections compose into. The hero
+ * sculpture needs that one asymmetric edge, not an average of two.
+ */
+export function heroColumnRightFraction(viewportWidth: number): number {
+  // R3F reports a size of 0 on the frame before the canvas is measured, and
+  // under `frameloop="demand"` (reduced motion) nothing re-renders until the
+  // reader scrolls — so that one frame is what they look at. Answering it
+  // honestly (`-1`, i.e. "the column ends at the left edge") would hand the
+  // caller a full-width gutter and park the sculpture centre-screen at full
+  // size, over the headline. An unmeasured viewport is not a wide one: fall to
+  // the narrow-page answer, which composes quietly.
+  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return 1;
+
+  const halfPx = Math.max(1, viewportWidth / 2);
+  const pad = Math.min(CONTENT_PAD_PX, viewportWidth * 0.05);
+  const containerLeft = Math.max(0, (viewportWidth - CONTENT_MAX_PX) / 2) + pad;
+  const columnWidth = Math.min(HERO_COLUMN_MAX_PX, Math.max(0, viewportWidth - containerLeft * 2));
+  return Math.min(1, (containerLeft + columnWidth - halfPx) / halfPx);
+}

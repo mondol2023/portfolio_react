@@ -29,28 +29,33 @@ interface ProjectsVariantProps {
  * every other file reads a definition, never branches on one.
  */
 export function ProjectsVariant({ scenery, ...props }: ProjectsVariantProps) {
+  // Unpacked rather than handed down whole, for the same reason
+  // `skills/index.tsx` unpacks: a variant that could read `scenery` would
+  // eventually branch on it.
+  const shared = { ...props, entrance: scenery.entrance };
+
   switch (scenery.projectsVariant) {
     case "plansheets":
-      return <Plansheets {...props} />;
+      return <Plansheets {...shared} />;
     case "monoliths":
       // S10: `Monoliths` suspends on its first KTX2 fetch (Phase H's ORM/
       // normal maps). Falling back to the fully procedural `Corridor` is a
       // one-time, barely-visible swap on first load — never a blank canvas.
       return (
-        <Suspense fallback={<Corridor {...props} />}>
-          <Monoliths {...props} />
+        <Suspense fallback={<Corridor {...shared} />}>
+          <Monoliths {...shared} />
         </Suspense>
       );
     case "foliage":
       // S10: `Foliage` suspends on its first KTX2 fetch (Phase J's leaf
       // colour/normal maps), same one-time swap as `Monoliths` above.
       return (
-        <Suspense fallback={<Corridor {...props} />}>
-          <Foliage {...props} />
+        <Suspense fallback={<Corridor {...shared} />}>
+          <Foliage {...shared} />
         </Suspense>
       );
     case "corridor":
     default:
-      return <Corridor {...props} />;
+      return <Corridor {...shared} />;
   }
 }

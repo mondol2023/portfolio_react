@@ -55,6 +55,7 @@ export function ScrollPhysics({ reducedMotion, active }: ScrollPhysicsProps) {
       spring.current.value = next;
       spring.current.velocity = 0;
       sceneScroll.progress = next;
+      sceneScroll.velocity = 0;
       invalidate();
     }
 
@@ -77,6 +78,7 @@ export function ScrollPhysics({ reducedMotion, active }: ScrollPhysicsProps) {
       spring.current.velocity = 0;
       accumulator.current = 0;
       sceneScroll.progress = target;
+      sceneScroll.velocity = 0;
       return;
     }
 
@@ -87,6 +89,9 @@ export function ScrollPhysics({ reducedMotion, active }: ScrollPhysicsProps) {
     }
 
     sceneScroll.progress = spring.current.value;
+    // Published, not re-derived: the raycaster's scroll gate (§6.2) needs a
+    // speed, and this spring already integrates one.
+    sceneScroll.velocity = spring.current.velocity;
   });
 
   return null;

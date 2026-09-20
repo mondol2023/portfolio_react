@@ -9,6 +9,7 @@
  * (E, G, I, J) fills the same `SceneryDefinition` rather than inventing one.
  */
 
+import type { EntranceId } from "./scene-motion";
 import type { ScenerySkin } from "./scene-palette";
 
 export const SCENERY_IDS = ["atelier", "observatory", "garden", "blueprint"] as const;
@@ -39,8 +40,12 @@ export interface SceneryLightRig {
   fill: ThemedIntensity;
   rim: ThemedIntensity;
   point: ThemedIntensity;
-  /** Phase I: the key orbits at this rate (rad/s) instead of sitting still. `null` keeps it static. */
-  keyOrbit: { speed: number } | null;
+  /**
+   * Phase I: the key orbits at this rate (rad/s) instead of sitting still.
+   * `null` keeps it static. `restAngle` is the pose it holds under reduced
+   * motion (Part 10) — same contract as `orrery.tsx`'s rings.
+   */
+  keyOrbit: { speed: number; restAngle: number } | null;
   /** Phase I: a cone on the hero sculpture. `null` omits the light entirely. */
   spot: ThemedIntensity | null;
 }
@@ -58,6 +63,28 @@ export interface SceneryDefinition {
   timescale: number;
   /** Scales `SceneBudget.particles`; never raises it above the tier ceiling (S11). */
   particleScale: number;
+  /**
+   * How far a skill node's hue may travel from the scenery's accent to code
+   * its category, as a fraction of the hue wheel.
+   *
+   * Phase L: this was a hardcoded `categoryIndex / categoryCount` in
+   * `skills/layout.ts`, i.e. the full wheel in every world — the node chain
+   * ran olive/green/teal/navy/magenta/purple/orange inside atelier's "warm,
+   * calm, editorial" brief and blueprint's monochrome schematic alike.
+   * Category still has to be readable, so what a tight spread gives up in hue
+   * `layout.ts` takes back as a lightness ladder.
+   */
+  hueSpread: number;
+  /**
+   * How this world’s objects arrive — the shared entrance language in
+   * `scene-motion.ts`, selected here rather than re-derived per variant.
+   *
+   * Phase L: every section of every world entered through the same
+   * `easeOutCubic(stagger(…, 0.5))`, which collapsed four temperaments into
+   * one. The curve, the stagger overlap, and where in the approach the
+   * arrival runs, all travel together under this one id.
+   */
+  entrance: EntranceId;
   /** No shadow map at any tier — `SceneBudget.shadows` is tier-only and can't express this. */
   shadowsDisabled?: boolean;
   lights: SceneryLightRig;
@@ -77,6 +104,11 @@ const ATELIER: SceneryDefinition = {
   geometry: "platonic",
   timescale: 1.0,
   particleScale: 1.0,
+  // Warm, calm, editorial: categories separate by a narrow warm band and a
+  // lightness ladder, never by a trip round the wheel into teal and magenta.
+  hueSpread: 0.08,
+  // Soft settle: the studio arrives as one body, early, and then rests.
+  entrance: "settle",
   // Phase E: the rig `lighting.tsx` hardcoded as `dark ? a : b` ternaries is
   // now data. Ambient is cut by a third from its old-single-source values
   // (0.22/0.58) because the new hemisphere light below replaces that third
@@ -111,6 +143,11 @@ const BLUEPRINT: SceneryDefinition = {
   geometry: "drafting",
   timescale: 1.25,
   particleScale: 0.4,
+  // Monochrome by specification — a schematic is drawn in one ink. Category
+  // reads purely as line lightness here.
+  hueSpread: 0,
+  // Plotted: constant rate, one element at a time, finished before the dwell.
+  entrance: "construct",
   shadowsDisabled: true,
   lights: {
     // Flat and near-shadeless by design — unlit geometry draws its own lines
@@ -126,7 +163,9 @@ const BLUEPRINT: SceneryDefinition = {
   },
   skillsVariant: "schematic",
   projectsVariant: "plansheets",
-  skin: { lineColor: "#3fb8ff" },
+  // One cyan cannot be the ink on both pages: #3fb8ff reads 8.95:1 on the dark
+  // page and 2.12:1 on paper, and in this scenery the lines *are* the object.
+  skin: { lineColor: { light: "#0a6fb0", dark: "#3fb8ff" } },
 };
 
 /**
@@ -145,6 +184,11 @@ const OBSERVATORY: SceneryDefinition = {
   geometry: "orrery",
   timescale: 0.75,
   particleScale: 1,
+  // Deep and precise: the tightest spread of the three coloured worlds, so
+  // the cold sky holds and nothing reads as a stray warm node.
+  hueSpread: 0.05,
+  // One slow spatial reveal, spread across the entire approach.
+  entrance: "reveal",
   lights: {
     ambient: { light: 0.1, dark: 0.08 },
     hemisphere: { intensity: 0.5 },
@@ -152,13 +196,16 @@ const OBSERVATORY: SceneryDefinition = {
     fill: { light: 0.16, dark: 0.18 },
     rim: { light: 0.45, dark: 0.5 },
     point: { light: 0.35, dark: 0.4 },
-    keyOrbit: { speed: 0.06 },
+    keyOrbit: { speed: 0.06, restAngle: 0.45 },
     spot: { light: 1.1, dark: 1.2 },
   },
   skillsVariant: "orrery",
   projectsVariant: "monoliths",
   // Hue → cold, chroma up, surface forced dark regardless of page theme (§4.2).
-  skin: { hueTowardDeg: 210, hueBlend: 0.6, chromaScale: 1.15, surfaceLightness: 0.22 },
+  // Forced-dark surface is right on paper (§4.2) and self-defeating on a
+  // #0c0a09 page, where 0.22 put the metal at 1.49–2.19:1 — the worst reading
+  // in the matrix. Dark mode lifts it instead; the key still has to find it.
+  skin: { hueTowardDeg: 210, hueBlend: 0.6, chromaScale: 1.15, surfaceLightness: { light: 0.22, dark: 0.44 } },
 };
 
 /**
@@ -178,6 +225,11 @@ const GARDEN: SceneryDefinition = {
   geometry: "organic",
   timescale: 0.6,
   particleScale: 0.7,
+  // The widest of the four, and still narrow: real foliage varies across a
+  // green band rather than staying one flat swatch.
+  hueSpread: 0.13,
+  // Unhurried and sequential — each thing grows after the last, never in unison.
+  entrance: "emerge",
   lights: {
     ambient: { light: 0.32, dark: 0.16 },
     hemisphere: { intensity: 1.1 },

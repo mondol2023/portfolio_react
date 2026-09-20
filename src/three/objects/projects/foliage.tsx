@@ -7,15 +7,26 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 
 import type { SceneBudget } from "@/lib/experience/device-tier";
 import { contentSafeFraction, gutterPixels } from "@/lib/experience/scene-layout";
-import { clampDelta, damp, easeOutCubic, SCENE_SMOOTHING, springStep, stagger, type SpringState } from "@/lib/experience/scene-motion";
+import {
+  clampDelta,
+  damp,
+  easeOutCubic,
+  type EntranceId,
+  entranceStagger,
+  SCENE_SMOOTHING,
+  springStep,
+  stagger,
+  type SpringState,
+} from "@/lib/experience/scene-motion";
 import type { ScenePalette } from "@/lib/experience/scene-palette";
-import { pickNearest, registerInteractive } from "@/lib/experience/scene-raycaster";
+import { scenePointer } from "@/lib/experience/scene-pointer";
+import { createHoverPicker, registerInteractive } from "@/lib/experience/scene-raycaster";
 import { sceneScroll } from "@/lib/experience/scene-scroll";
-import { sceneTime } from "@/lib/experience/scene-timer";
 import type { Project } from "@/lib/types/content";
 
 import { sceneSectionEnvelope } from "../../scene/camera-rig";
 import { useSceneKTX2 } from "../../scene/loaders";
+import { hoveredSlabIndex } from "./hovered";
 import { buildSlabs, WALL_LIMIT } from "./layout";
 
 export interface FoliageProps {
@@ -26,6 +37,8 @@ export interface FoliageProps {
   pointer: { current: { x: number; y: number } };
   /** This section's waypoint index: `entry` unfurls the leaves, `exit` folds them back. */
   sectionIndex: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 const WALL_MIN_GUTTER = 70;
@@ -40,19 +53,32 @@ const LEAF_WIDTH = 0.66;
 const LEAF_DEPTH = 0.016;
 
 /** Rest yaw is edge-on to the wall (reuses `buildSlabs.closed`); a leaf only turns further toward camera-facing when the dot product below says it's worth it. */
+/** How much sway energy a full page of scrolling is worth. */
+const SWAY_GAIN = 26;
+/** Peak lean, radians — ~3 degrees at a hard flick, nothing at rest. */
+const SWAY_AMPLITUDE = 0.05;
 const FACE_GATE_LOW = -0.1;
 const FACE_GATE_HIGH = 0.55;
+
+/** Hovered: the leaf lifts and comes a little way round. */
+const HOVER_LIFT = 0.06;
+const HOVER_SCALE = 0.08;
+/** Pressed: it yields — smaller, fully turned, brighter. Unmistakably not the hover. */
+const PRESS_GIVE = 0.09;
+const PRESS_GLOW = 0.35;
 
 interface LeafRuntime {
   /** 0-1 camera-facing turn, eased rather than snapped so the gate reads as a lean, not a flip. */
   turn: SpringState;
   /** 0-1 hover reaction. */
   hold: number;
+  /** 0-1 press reaction, sprung so the release unwinds rather than cuts. */
+  press: SpringState;
   swayPhase: number;
 }
 
 function newRuntime(index: number): LeafRuntime {
-  return { turn: { value: 0, velocity: 0 }, hold: 0, swayPhase: index * 2.4 };
+  return { turn: { value: 0, velocity: 0 }, hold: 0, press: { value: 0, velocity: 0 }, swayPhase: index * 2.4 };
 }
 
 /**
@@ -113,7 +139,15 @@ function buildStemGeometry(slabs: ReturnType<typeof buildSlabs>): THREE.BufferGe
  * lift, scale and colour all come from the same layout every wall variant
  * reads.
  */
-export function Foliage({ projects, palette, budget, reducedMotion, pointer, sectionIndex }: FoliageProps) {
+export function Foliage({
+  projects,
+  palette,
+  budget,
+  reducedMotion,
+  pointer,
+  sectionIndex,
+  entrance,
+}: FoliageProps) {
   const ranked = useMemo(() => [...projects].sort((a, b) => a.order - b.order), [projects]);
   const slabs = useMemo(() => buildSlabs(ranked, palette, WALL_LIMIT[budget.tier]), [ranked, palette, budget.tier]);
 
@@ -139,12 +173,15 @@ export function Foliage({ projects, palette, budget, reducedMotion, pointer, sec
   }, [leafGeometry, stemGeometry]);
 
   const rootRef = useRef<THREE.Group>(null);
+  /** Scroll-driven sway: energy in from movement, damped out to rest. */
+  const swayState = useRef({ energy: 0, last: 0 });
   const groupRefs = useRef<(THREE.Group | null)[]>([]);
   const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
   const leafMaterials = useRef<(THREE.MeshPhysicalMaterial | null)[]>([]);
   const unregisterRefs = useRef<(() => void)[]>([]);
 
   const runtime = useMemo(() => slabs.map((_slab, index) => newRuntime(index)), [slabs]);
+  const pickHover = useMemo(() => createHoverPicker(), []);
 
   useEffect(() => () => unregisterRefs.current.forEach((unregister) => unregister()), []);
 
@@ -159,7 +196,9 @@ export function Foliage({ projects, palette, budget, reducedMotion, pointer, sec
     const delta = clampDelta(rawDelta);
 
     const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
-    const opening = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1);
+    // Raw, not smoothstepped: the world's own entrance curve is the only
+    // shaping applied to it now (Part 4).
+    const opening = reducedMotion ? 1 : entryProgress;
     const presence = 1 - THREE.MathUtils.smoothstep(exitProgress, 0, 1);
 
     root.visible = presence > 0.01;
@@ -173,11 +212,32 @@ export function Foliage({ projects, palette, budget, reducedMotion, pointer, sec
     const halfAtUnit = Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5);
     const panelFrac = THREE.MathUtils.clamp(safeFrac + PANEL_MARGIN, PANEL_FRAC_MIN, PANEL_FRAC_MAX);
 
+    // Garden's wall is disturbed by the reader and settles back, rather than
+    // bobbing on a clock of its own: scroll movement adds energy, `damp`
+    // takes it away. At rest the leaves are still — which is what "settling,
+    // not idle-game bobbing" means, and what `scenery.ts` already claims for
+    // this world ("nothing moves on its own clock, only in response to
+    // scroll"). Before Phase L that claim was false: the sway ran off
+    // `sceneTime.elapsed` and never stopped.
+    const scrolled = sceneScroll.progress - swayState.current.last;
+    swayState.current.last = sceneScroll.progress;
+    swayState.current.energy = damp(
+      THREE.MathUtils.clamp(swayState.current.energy + scrolled * SWAY_GAIN, -1, 1),
+      0,
+      SCENE_SMOOTHING.glide,
+      delta,
+    );
+    const swayEnergy = reducedMotion ? 0 : swayState.current.energy;
+
     const interactive = !reducedMotion && wallsOn && presence > 0.05;
     let hoveredIndex = -1;
     if (interactive) {
-      const hit = pickNearest(camera, pointer.current);
-      hoveredIndex = hit ? meshRefs.current.indexOf(hit.object as THREE.Mesh) : -1;
+      // The throttled picker, not a raw ray: this is the page's one continuous
+      // raycast, so §6.2's frame and scroll gates apply to it.
+      hoveredIndex = hoveredSlabIndex(slabs, () => {
+        const hit = pickHover(camera, pointer.current);
+        return hit ? meshRefs.current.indexOf(hit.object as THREE.Mesh) : -1;
+      });
     }
 
     slabs.forEach((slab, index) => {
@@ -188,7 +248,7 @@ export function Foliage({ projects, palette, budget, reducedMotion, pointer, sec
       group.visible = wallsOn;
       if (!wallsOn) return;
 
-      const wave = reducedMotion ? 1 : easeOutCubic(stagger(opening, index, slabs.length, 0.5));
+      const wave = reducedMotion ? 1 : entranceStagger(entrance, opening, index, slabs.length);
       const shut = reducedMotion ? 0 : easeOutCubic(stagger(1 - presence, index, slabs.length, 0.5));
       const emergence = THREE.MathUtils.clamp(wave * (1 - shut), 0, 1) * allowance;
 
@@ -200,16 +260,21 @@ export function Foliage({ projects, palette, budget, reducedMotion, pointer, sec
       const hovered = hoveredIndex === index;
       item.hold = damp(item.hold, hovered ? 1 : 0, SCENE_SMOOTHING.tight, delta);
       const hold = item.hold;
-      // Lift + a touch of extra scale on hover — the raycast reaction stands
-      // in for `hoveredProjectId` (no DOM publisher exists for it, so a real
-      // ray is the only source of truth here, matching `monoliths.tsx`'s
-      // press-pick pattern but sampled continuously since there's no drag).
-      group.position.y += hold * 0.06;
-      group.scale.setScalar(slab.scale * emergence * (1 + hold * 0.08));
+      // Garden answers a press by giving, not by opening: the leaf yields under
+      // the hand and unwinds on `settle`.
+      const pressing = hovered && scenePointer.pressed && scenePointer.grabAllowed;
+      const press = springStep(item.press, pressing ? 1 : 0, "settle", delta);
+      // Lift + a touch of extra scale on hover, from whichever source spoke:
+      // the hovered card if there is one, otherwise the ray (`hovered.ts`).
+      // Until Phase L Part 6 only the ray existed, because `hoveredProjectId`
+      // had no DOM publisher.
+      group.position.y += hold * HOVER_LIFT;
+      group.scale.setScalar(slab.scale * emergence * (1 + hold * HOVER_SCALE - press * PRESS_GIVE));
 
-      // Independent sway, phase-offset per leaf so the wall never moves in
-      // lockstep — the shared clock (`sceneTime`), never React state.
-      const sway = reducedMotion ? 0 : Math.sin(sceneTime.elapsed * 0.45 + item.swayPhase) * 0.05 * presence;
+      // Phase-offset per leaf so the wall never moves in lockstep. The offset
+      // is now a fixed signed gain rather than a running phase: each leaf
+      // answers the same scroll energy by its own amount and direction.
+      const sway = swayEnergy * Math.sin(item.swayPhase) * SWAY_AMPLITUDE * presence;
 
       // Dot-product-gated camera-facing turn: a leaf already angled toward
       // the reader barely moves; one turned away leans back before it does.
@@ -218,7 +283,7 @@ export function Foliage({ projects, palette, budget, reducedMotion, pointer, sec
       scratchForward.set(0, 0, 1).applyQuaternion(group.quaternion).setY(0).normalize();
       const dot = scratchForward.dot(scratchToCamera);
       const gate = THREE.MathUtils.smoothstep(dot, FACE_GATE_LOW, FACE_GATE_HIGH);
-      const turnTarget = reducedMotion ? 1 : Math.max(gate, hold * 0.7);
+      const turnTarget = reducedMotion ? 1 : Math.max(gate, hold * 0.7, press);
       const turn = springStep(item.turn, turnTarget, "settle", delta);
 
       const restYaw = -slab.side * (Math.PI / 2 - 0.35);
@@ -228,7 +293,7 @@ export function Foliage({ projects, palette, budget, reducedMotion, pointer, sec
       const material = leafMaterials.current[index];
       if (material) {
         material.opacity = emergence;
-        material.emissiveIntensity = 0.04 + hold * 0.3;
+        material.emissiveIntensity = 0.04 + hold * 0.3 + press * PRESS_GLOW;
       }
     });
   });

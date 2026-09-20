@@ -9,6 +9,9 @@ import { contentSafeFraction, gutterPixels } from "@/lib/experience/scene-layout
 import {
   clampDelta,
   damp,
+  easeOutCubic,
+  type EntranceId,
+  entranceStagger,
   SCENE_SMOOTHING,
   springStep,
   stagger,
@@ -23,6 +26,7 @@ import type { Project } from "@/lib/types/content";
 
 import { sceneSectionEnvelope } from "../../scene/camera-rig";
 import { gridTexture } from "../../scene/geometry";
+import { hoveredSlabIndex } from "./hovered";
 import { buildSlabs, FAR_DIM, SLAB_HEIGHT, SLAB_WIDTH, WALL_LIMIT } from "./layout";
 
 export interface PlansheetsProps {
@@ -33,6 +37,8 @@ export interface PlansheetsProps {
   pointer: { current: { x: number; y: number } };
   /** This section's waypoint index: `entry` opens the deck, `exit` closes it again. */
   sectionIndex: number;
+  /** `scenery.entrance` — the world's arrival language, applied to this section's entry ramp. */
+  entrance: EntranceId;
 }
 
 /** Same screen-space placement contract as `corridor.tsx` — a different vocabulary, not a new one. */
@@ -50,6 +56,14 @@ const EXIT_SPAN = 0.3;
 /** How far a raised sheet lifts toward the reader, and how much larger it reads. */
 const RAISE_LIFT = 0.5;
 const RAISE_SCALE = 0.18;
+/**
+ * A hovered card nudges its sheet a fraction of a raise and firms its border
+ * (Phase L Part 6). Deliberately a fraction: "the reader is reading this one"
+ * and "the reader has opened this one" must not look like the same state, and
+ * on a drafting board the quieter of the two is a line weight, not a move.
+ */
+const HOVER_NUDGE = 0.16;
+const HOVER_INK = 0.28;
 
 /** Grid backdrop's scroll rate, in UV repeats per second (§4.4). */
 const GRID_SCROLL_X = 0.03;
@@ -65,7 +79,15 @@ const GRID_REPEAT = 3;
  * one raises a sheet, a second click on the *raised* sheet opens Inspect mode
  * (§6.3); a click elsewhere lowers whatever was raised.
  */
-export function Plansheets({ projects, palette, budget, reducedMotion, pointer, sectionIndex }: PlansheetsProps) {
+export function Plansheets({
+  projects,
+  palette,
+  budget,
+  reducedMotion,
+  pointer,
+  sectionIndex,
+  entrance,
+}: PlansheetsProps) {
   const ranked = useMemo(() => [...projects].sort((a, b) => a.order - b.order), [projects]);
   const slabs = useMemo(
     () => buildSlabs(ranked, palette, WALL_LIMIT[budget.tier]),
@@ -102,6 +124,7 @@ export function Plansheets({ projects, palette, budget, reducedMotion, pointer, 
 
   const travel = useRef(-TRAVEL_IN);
   const raised = useRef(-1);
+  const attention = useRef<number[]>([]);
   const liftSprings = useRef<SpringState[]>([]);
   const lastReleaseStamp = useRef(scenePointer.releaseStamp);
   const gridOffset = useRef({ x: 0, y: 0 });
@@ -109,6 +132,7 @@ export function Plansheets({ projects, palette, budget, reducedMotion, pointer, 
   useEffect(() => {
     if (liftSprings.current.length !== slabs.length) {
       liftSprings.current = slabs.map(() => ({ value: 0, velocity: 0 }));
+      attention.current = slabs.map(() => 0);
       if (raised.current >= slabs.length) raised.current = -1;
     }
   }, [slabs]);
@@ -124,13 +148,19 @@ export function Plansheets({ projects, palette, budget, reducedMotion, pointer, 
     const delta = clampDelta(rawDelta);
 
     const { entry: entryProgress, exit: exitProgress } = sceneSectionEnvelope(sceneScroll.progress, sectionIndex);
-    const opening = reducedMotion ? 1 : THREE.MathUtils.smoothstep(entryProgress, 0, 1);
+    // Raw, not smoothstepped: the world's own entrance curve is the only
+    // shaping applied to it now (Part 4).
+    const opening = reducedMotion ? 1 : entryProgress;
     const ordinaryClose = THREE.MathUtils.smoothstep(
       THREE.MathUtils.clamp(exitProgress / EXIT_SPAN, 0, 1),
       0,
       1,
     );
     const presence = 1 - ordinaryClose;
+
+    // A raise is a reading state, not a stored selection — leaving the section
+    // lowers it, on the same `gentle` spring, while the deck can still show it.
+    if (presence < 0.5) raised.current = -1;
 
     root.visible = presence > 0.01 || opening > 0.01;
     if (!root.visible) return;
@@ -173,6 +203,11 @@ export function Plansheets({ projects, palette, budget, reducedMotion, pointer, 
       }
     }
 
+    // Blueprint's sheets do not chase the cursor — the ray is consulted only
+    // at a classified release, above — so this has no `pick` fallback and
+    // answers the hovered card alone (`hovered.ts`).
+    const attended = reducedMotion || !wallsOn ? -1 : hoveredSlabIndex(slabs, () => -1);
+
     slabs.forEach((slab, index) => {
       const group = slabRefs.current[index];
       const lift = liftRefs.current[index];
@@ -182,8 +217,8 @@ export function Plansheets({ projects, palette, budget, reducedMotion, pointer, 
       group.visible = wallsOn;
       if (!wallsOn) return;
 
-      const wave = reducedMotion ? 1 : easeInWave(stagger(opening, index, slabs.length, 0.5));
-      const shut = reducedMotion ? ordinaryClose : easeInWave(stagger(ordinaryClose, index, slabs.length, 0.5));
+      const wave = reducedMotion ? 1 : entranceStagger(entrance, opening, index, slabs.length);
+      const shut = reducedMotion ? ordinaryClose : easeOutCubic(stagger(ordinaryClose, index, slabs.length, 0.5));
       const fade = THREE.MathUtils.clamp(wave * (1 - shut), 0, 1);
 
       const depth = Math.max(MIN_DEPTH, camera.position.z - (root.position.z + slab.z));
@@ -197,13 +232,23 @@ export function Plansheets({ projects, palette, budget, reducedMotion, pointer, 
       group.rotation.y = -slab.side * 0.12;
 
       const isRaised = raised.current === index;
-      springStep(liftSpring, isRaised ? 1 : 0, "panel", delta);
-      lift.position.z = liftSpring.value * RAISE_LIFT;
+      const noticed = damp(attention.current[index] ?? 0, attended === index ? 1 : 0, SCENE_SMOOTHING.tight, delta);
+      attention.current[index] = noticed;
+      // `gentle`, not `panel`: at stiffness 180 / damping 24 / mass 1 `panel`
+      // has a damping ratio of ~0.89 and is documented as the spring for
+      // "panels that overshoot". A drafting sheet that bounces on release
+      // makes the one scenery specified as precise read as playful (§4.4), so
+      // this takes the vocabulary's one explicitly overshoot-free spring.
+      springStep(liftSpring, isRaised ? 1 : 0, "gentle", delta);
+      lift.position.z = (liftSpring.value + noticed * HOVER_NUDGE) * RAISE_LIFT;
       group.scale.setScalar(slab.scale * (1 + liftSpring.value * RAISE_SCALE));
 
       const dim = 1 - index * FAR_DIM;
       const border = borderMaterials.current[index];
-      if (border) border.opacity = fade * dim * (0.55 + liftSpring.value * 0.45);
+      if (border) {
+        border.opacity =
+          fade * dim * Math.min(1, 0.55 + liftSpring.value * 0.45 + noticed * HOVER_INK);
+      }
       const backdrop = backdropMaterials.current[index];
       if (backdrop) backdrop.opacity = fade * dim * (0.14 + liftSpring.value * 0.1);
     });
@@ -262,8 +307,3 @@ export function Plansheets({ projects, palette, budget, reducedMotion, pointer, 
   );
 }
 
-/** A quick, confident entrance for a sheet — sharper than `easeOutCubic`, matching a drafting reveal rather than a soft float. */
-function easeInWave(t: number): number {
-  const x = THREE.MathUtils.clamp(t, 0, 1);
-  return x * x * (3 - 2 * x);
-}

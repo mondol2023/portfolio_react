@@ -26,15 +26,19 @@ interface SkillsVariantProps {
  * every other file reads a definition, never branches on one.
  */
 export function SkillsVariant({ scenery, ...props }: SkillsVariantProps) {
+  // Unpacked here rather than handing each variant the whole definition: a
+  // variant that could read `scenery` would eventually branch on it.
+  const shared = { ...props, hueSpread: scenery.hueSpread, entrance: scenery.entrance };
+
   switch (scenery.skillsVariant) {
     case "schematic":
-      return <Schematic {...props} />;
+      return <Schematic {...shared} />;
     case "orrery":
-      return <Orrery {...props} />;
+      return <Orrery {...shared} />;
     case "growth":
-      return <Growth {...props} />;
+      return <Growth {...shared} />;
     case "constellation":
     default:
-      return <Constellation {...props} />;
+      return <Constellation {...shared} />;
   }
 }

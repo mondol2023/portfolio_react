@@ -94,20 +94,26 @@ function notify() {
  *
  * Interpolating between the section *midpoints* instead pins waypoint `i` to
  * the moment section `i` crosses the reader's eyeline — the same eyeline the
- * `IntersectionObserver` above already uses to pick the tone — so the
- * choreography lands on the content it was written for at every viewport
- * width, without the camera path needing to know anything about page layout.
+ * `IntersectionObserver` above already uses to pick the tone (hence the
+ * half-viewport offset applied to `y` below) — so the choreography lands on
+ * the content it was written for at every viewport width, without the camera
+ * path needing to know anything about page layout.
  */
 function storyProgress(): number {
   const doc = document.documentElement;
   const max = doc.scrollHeight - doc.clientHeight;
   if (max <= 0) return 0;
 
-  const y = window.scrollY;
+  // The reader's eyeline, not the viewport's top edge: `centres` are section
+  // midpoints in document space, so comparing raw `scrollY` against them landed
+  // every waypoint half a viewport late — Hero's sculpture was still ~80%
+  // present over Skills' pills, by a different fraction at every viewport
+  // height. `MIDDLE_BAND` above is the same half-height offset.
+  const y = window.scrollY + doc.clientHeight / 2;
   const last = centres.length - 1;
   // One section (or none) has no span to interpolate across; fall back to the
-  // raw document read so the value still moves.
-  if (last < 1) return Math.min(1, Math.max(0, y / max));
+  // raw document read so the value still moves (no midpoints to offset against).
+  if (last < 1) return Math.min(1, Math.max(0, window.scrollY / max));
 
   const first = centres[0] ?? 0;
   if (y <= first) return 0;

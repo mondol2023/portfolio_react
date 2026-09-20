@@ -4,7 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 
-import { SCENE_SMOOTHING, damp, easeInOutSine } from "@/lib/experience/scene-motion";
+import { SCENE_SMOOTHING, clampDelta, damp, easeInOutSine } from "@/lib/experience/scene-motion";
 import { sceneScroll } from "@/lib/experience/scene-scroll";
 import { signature } from "@/lib/experience/scene-signature";
 
@@ -44,17 +44,33 @@ interface Waypoint {
  *
  * Two things the path carries beyond position. It leans *away* from whichever
  * side a section's object occupies, so the object lands in the page's own
- * negative space rather than dead centre behind an opaque card grid. And each
- * waypoint names a focal length: the lens tightens to 43° at Projects, where
- * the corridor wants compression and depth, and opens to 51° at Contact,
- * where the scene is meant to feel like it is letting go. Four degrees across
+ * negative space rather than dead centre behind an opaque card grid. Measured
+ * on the rendered page, that lean is worth less than it reads: a waypoint's
+ * `lookAt` mostly follows its `position`, so the pair swings the vantage
+ * without moving much on screen — About and Experience displace world origin
+ * by 6–7% of a half-width, and every section that genuinely clears the type
+ * column does it in its own object file, from `scene-layout.ts`. Skills is the
+ * exception and the one waypoint that has to carry its own framing: its four
+ * variants are the only section family with no screen-fraction placement at
+ * all, so the aim is what decides whether the node field sits beside the
+ * heading or across it. And each waypoint names a focal length: the lens
+ * tightens to 43° at Projects, where the corridor wants compression and
+ * depth, and opens to 51° at Contact, where the scene is meant to feel like
+ * it is letting go. Four degrees across
  * a whole section is a lens change, not a zoom — it is never perceptible as
  * movement, only as a change of mood.
  */
 const PATH: Waypoint[] = [
   { position: [0, 0, 6], lookAt: [0, 0, 0], fov: 46 }, // hero
   { position: [1.15, 0.35, 5.4], lookAt: [0.2, 0.05, -0.4], fov: 47 }, // about
-  { position: [-1.35, 0.5, 5.6], lookAt: [-0.25, 0.1, -0.4], fov: 48 }, // skills
+  // Skills aims well left of its own dolly, which is what swings the node
+  // field right, off the left-aligned heading block and into the page's open
+  // side. At -0.25 the aim all but cancelled the dolly — world origin landed
+  // 7.7% of a half-width right of centre and the whole field fell inside the
+  // reading column, nodes across the "Tools I reach for" glyphs included. The
+  // field is too wide to clear the column outright (it spans 0.7 of a
+  // half-width against a 0.21 gutter), so this buys the heading, not the lede.
+  { position: [-1.35, 0.5, 5.6], lookAt: [-1.3, 0.1, -0.4], fov: 48 }, // skills
   // Projects sits on the centre axis looking straight down the corridor, so
   // both walls read symmetrically in the page's side gutters. The eyeline is
   // a little above the camera rather than level with it: the corridor ends in
@@ -65,12 +81,36 @@ const PATH: Waypoint[] = [
   // move anyone can see happen.
   { position: [0, 0.06, 5.1], lookAt: [0, 0.16, -3.6], fov: 43 }, // projects
   { position: [1.05, -0.3, 5.6], lookAt: [0.15, -0.12, -0.7], fov: 47 }, // experience
-  { position: [0, 0, 6.8], lookAt: [0, 0, 0], fov: 51 }, // contact
+  // Contact is the path's release, and the one section whose page is two
+  // columns rather than a centred one: detail on the left, an opaque form card
+  // from the middle of the frame rightward. Repeating Hero's dead-centre pose
+  // put the calm dodecahedron behind that card — the exact "dead centre behind
+  // an opaque card grid" this path exists to avoid. The aim drifts right so
+  // the object settles into the open band between the two columns; because
+  // nothing follows this waypoint, the drift also reads as the scene letting
+  // go rather than as a move toward anything.
+  { position: [0, 0, 6.8], lookAt: [1.4, 0, 0], fov: 51 }, // contact
 ];
 
 /** How far the camera drifts with the cursor. Parallax, not a flight control. */
 const PARALLAX_X = 0.18;
 const PARALLAX_Y = 0.1;
+
+/**
+ * The aspect every lateral number above was authored against — 1440×900, the
+ * viewport the path was tuned on.
+ *
+ * `fov` is vertical, so the frame's world half-height is the same at every
+ * width and the path's `y` needs no correction; its half-*width* is that times
+ * the aspect. An `x` held in world units is therefore a different fraction of
+ * the frame at every viewport: the 1.35 that reads as a third of a half-width
+ * here is more than a whole one at 390×844, where the same waypoints swing the
+ * scene a quarter of the frame sideways between sections and throw Skills'
+ * outer cluster clean off the edge. Scaling the lateral track by the live
+ * aspect makes each waypoint's framing the authored one at every width. At
+ * 1.6 the factor is exactly 1, so the desktop path is untouched.
+ */
+const REFERENCE_ASPECT = 1.6;
 
 const scratchPosition = new THREE.Vector3();
 const scratchLookAt = new THREE.Vector3();
@@ -148,7 +188,13 @@ export function CameraRig({ scrollEnabled, reducedMotion, pointer, inspectActive
   const releaseFrom = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion } | null>(null);
   const releaseElapsed = useRef(0);
 
-  useFrame((_state, delta) => {
+  useFrame((_state, rawDelta) => {
+    // The release below is the one camera move on a wall clock rather than on
+    // scroll, so it is the one that a dropped frame can finish early: a
+    // tab-return spike would land the 0.6s hand-back in a single frame, which
+    // is the cut it exists to prevent.
+    const delta = clampDelta(rawDelta);
+
     // Ceded entirely: `OrbitControls` (`inspect-controls.tsx`) owns the camera
     // while Inspect mode is active, and this rig must not fight it for a
     // single frame.
@@ -158,8 +204,14 @@ export function CameraRig({ scrollEnabled, reducedMotion, pointer, inspectActive
     }
     if (wasInspecting.current) {
       wasInspecting.current = false;
-      releaseFrom.current = { position: camera.position.clone(), quaternion: camera.quaternion.clone() };
-      releaseElapsed.current = 0;
+      // Reduced motion renders on "demand", so a wall-clock blend only
+      // advances when a scroll happens to wake the renderer — the camera
+      // would sit stranded at the free-orbit pose, then jump. It takes the
+      // waypoint back on this frame instead.
+      if (!reducedMotion) {
+        releaseFrom.current = { position: camera.position.clone(), quaternion: camera.quaternion.clone() };
+        releaseElapsed.current = 0;
+      }
     }
 
     const span = PATH.length - 1;
@@ -185,15 +237,20 @@ export function CameraRig({ scrollEnabled, reducedMotion, pointer, inspectActive
     // The corridor runs down -Z, so pushing toward the wall is subtraction.
     const push = scrollEnabled ? signature.push : 0;
 
+    // Both the dolly's lean and the pointer drift are lateral, so both ride the
+    // same correction — the cursor otherwise pulls four times as hard on a
+    // phone as it does on the desktop the throw was chosen on.
+    const lateral = (camera instanceof THREE.PerspectiveCamera ? camera.aspect : REFERENCE_ASPECT) / REFERENCE_ASPECT;
+
     scratchPosition.set(
-      THREE.MathUtils.lerp(a.position[0], b.position[0], local) + parallax.current.x,
+      (THREE.MathUtils.lerp(a.position[0], b.position[0], local) + parallax.current.x) * lateral,
       THREE.MathUtils.lerp(a.position[1], b.position[1], local) + parallax.current.y,
       THREE.MathUtils.lerp(a.position[2], b.position[2], local) - push,
     );
     scratchLookAt.set(
       // The target counter-rotates a fraction of the parallax, so the cursor
       // swings the camera *around* the subject instead of panning off it.
-      THREE.MathUtils.lerp(a.lookAt[0], b.lookAt[0], local) - parallax.current.x * 0.25,
+      (THREE.MathUtils.lerp(a.lookAt[0], b.lookAt[0], local) - parallax.current.x * 0.25) * lateral,
       THREE.MathUtils.lerp(a.lookAt[1], b.lookAt[1], local) - parallax.current.y * 0.25,
       THREE.MathUtils.lerp(a.lookAt[2], b.lookAt[2], local),
     );

@@ -11,6 +11,8 @@
 
 import * as THREE from "three";
 
+import { SCROLL_RAY_SUSPEND, sceneScroll } from "./scene-scroll";
+
 const raycaster = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 
@@ -47,6 +49,30 @@ export function pickNearest(
   raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObjects(registryList, false);
   return hits[0] ?? null;
+}
+
+/**
+ * `pickNearest` for continuous hover, throttled per §6.2: every other frame, and
+ * off above `SCROLL_RAY_SUSPEND`. A factory — the cache must be per-caller.
+ */
+export function createHoverPicker(): (
+  camera: THREE.Camera,
+  pointerNdc: { x: number; y: number },
+) => THREE.Intersection | null {
+  let frame = 0;
+  let last: THREE.Intersection | null = null;
+
+  return (camera, pointerNdc) => {
+    if (Math.abs(sceneScroll.velocity) > SCROLL_RAY_SUSPEND) {
+      last = null;
+      return null;
+    }
+    frame += 1;
+    // Off frames reuse the last hit, so a held hover doesn't flicker at 30Hz.
+    if (frame % 2 === 0) return last;
+    last = pickNearest(camera, pointerNdc);
+    return last;
+  };
 }
 
 const scratchDirection = new THREE.Vector3();
